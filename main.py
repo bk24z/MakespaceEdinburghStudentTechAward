@@ -1,3 +1,5 @@
+from unittest.mock import DEFAULT
+
 import pygame
 import time
 import math
@@ -34,6 +36,7 @@ BLACK = (0, 0, 0)
 RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
+LIGHT_BLUE = (173, 216, 230)
 BUTCHER_BLOCK = (190, 172, 76)
 
 SCREEN_WIDTH = 720
@@ -88,8 +91,9 @@ class Ball:
 
     def update(self, dt):
         is_moving_in_lane = self.state == BallState.MOVING_IN_LANE
-        # is_in_left_gutter = self.state == BallState.IN_LEFT_GUTTER and (self.x > LEFT_BOUNDARY - GUTTER_WIDTH / 2)
-        # is_in_right_gutter = self.state == BallState.IN_LEFT_GUTTER and (self.x < RIGHT_BOUNDARY + GUTTER_WIDTH / 2)
+        has_entered_left_gutter = self.x < LEFT_BOUNDARY - GUTTER_WIDTH / 2
+        has_entered_right_gutter = self.x > RIGHT_BOUNDARY + GUTTER_WIDTH / 2
+        has_entered_gutter = has_entered_left_gutter or has_entered_right_gutter
         is_finished = self.state == BallState.FINISHED
         in_gutter = self.state == BallState.IN_LEFT_GUTTER or self.state == BallState.IN_RIGHT_GUTTER
         if is_moving_in_lane:
@@ -98,21 +102,17 @@ class Ball:
             if self.y > LANE_LENGTH:  # When the ball reaches the top of the lane, stop it
                 self.state = BallState.FINISHED
                 self.y = LANE_LENGTH
-            if self.x < LEFT_BOUNDARY - GUTTER_WIDTH / 2 or RIGHT_BOUNDARY + GUTTER_WIDTH / 2:  # If the ball goes into the gutter, ...
+                # self.on_finish()
+            if has_entered_gutter:  # If the ball goes into the gutter, ...
                 print(f"GUTTER! x={self.x}")
-                if self.x < LEFT_BOUNDARY - GUTTER_WIDTH / 2:
+                if has_entered_left_gutter:
                     self.state = BallState.IN_LEFT_GUTTER
-                if self.x > RIGHT_BOUNDARY + GUTTER_WIDTH / 2:
+                if has_entered_right_gutter:
                     self.state = BallState.IN_RIGHT_GUTTER
             if False:  # If the ball goes directly out of bounds, ...
                 self.state = BallState.OUT_OF_BOUNDS
-            # for pin in PINS:
-            #     if False: # If the ball hits a pin, ...
-            #         pass
-            # print(self.x, self.y)
-        # self.img.calculate_pos()
         if in_gutter:
-            self.y += self.vy * dt
+            self.y += self.vy * dt  # Keep the ball moving vertically in the gutter
             if self.y > LANE_LENGTH:  # When the ball reaches the top of the lane, stop it
                 self.state = BallState.FINISHED
                 self.y = LANE_LENGTH
@@ -139,7 +139,7 @@ class BallImage:
         # print(f"Ball screen pos: ({self.x}, {self.y})")
         # screen.blit(self.img, (self.x, self.y))
         radius = Ball.RADIUS * (ALLEY_SCREEN_WIDTH / LANE_WIDTH)
-        pygame.draw.circle(screen, BLUE, (self.x, self.y), self.RADIUS)
+        pygame.draw.circle(screen, LIGHT_BLUE, (self.x, self.y), self.RADIUS)
 
 
 class TrajectoryLine:
@@ -210,6 +210,17 @@ class PinImage:
         pygame.draw.circle(screen, color, (self.x, self.y), self.RADIUS)
 
 
+def return_default_pins():
+    h = HALF_PIN_SPACING_H
+    v = PIN_SPACING_V
+    base_y = FOUL_LINE_TO_FRONT_PIN_DISTANCE
+    return [
+        Pin(-h * 3, base_y + v * 3), Pin(-h, base_y + v * 3), Pin(h, base_y + v * 3), Pin(h * 3, base_y + v * 3),
+        Pin(-h * 2, base_y + v * 2), Pin(0, base_y + v * 2), Pin(h * 2, base_y + v * 2),
+        Pin(-h, base_y + v), Pin(h, base_y + v),
+        Pin(0, base_y),
+    ]
+
 def convert_game_to_screen_pos(game_x, game_y, offset_x=0.0, offset_y=0.0):
     screen_x = SCREEN_WIDTH / 2 + (game_x * (ALLEY_SCREEN_WIDTH / LANE_WIDTH)) + offset_x
     screen_y = ALLEY_SCREEN_HEIGHT - (game_y * (ALLEY_SCREEN_HEIGHT / LANE_LENGTH)) + offset_y
@@ -222,43 +233,51 @@ def update_pins(ball, pins):
         if pin.hit:
             continue
         ball_pin_distance = math.sqrt((ball.x - pin.x) ** 2 + (ball.y - pin.y) ** 2)
-        print(f"Ball-pin distance: {ball_pin_distance}")
+        # print(f"Ball-pin distance: {ball_pin_distance}")
         if ball_pin_distance < Pin.RADIUS + Ball.RADIUS:
             pin.on_hit()
 
 
+def on_finish(ball, pins):
+    pins_hit = len([1 for pin in pins if pin.hit])
+    print(f"Finished! Pins hit: {pins_hit}")
+    ball.__init__()  # Reset ball
+    pins = return_default_pins()
+    return pins
+
 def main():
     ball = Ball()
     trajectory_line = TrajectoryLine(ball)
-    h = HALF_PIN_SPACING_H
-    v = PIN_SPACING_V
-    base_y = FOUL_LINE_TO_FRONT_PIN_DISTANCE
-    pins = [
-        Pin(-h * 3, base_y + v * 3), Pin(-h, base_y + v * 3), Pin(h, base_y + v * 3), Pin(h * 3, base_y + v * 3),
-        Pin(-h * 2, base_y + v * 2), Pin(0, base_y + v * 2), Pin(h * 2, base_y + v * 2),
-        Pin(-h, base_y + v), Pin(h, base_y + v),
-        Pin(0, base_y),
-    ]
+    pins = return_default_pins()
     running = True
     while running:
+
         # Fill the screen with a white background
         screen.fill(WHITE)
+
+        # Calculate the alley and gutter dimensions
         left_boundary_x, _ = convert_game_to_screen_pos(LEFT_BOUNDARY, 0)
         right_boundary_x, _ = convert_game_to_screen_pos(RIGHT_BOUNDARY, 0)
         left_gutter_x, _ = convert_game_to_screen_pos(LEFT_BOUNDARY - GUTTER_WIDTH, 0)
         right_gutter_x, _ = convert_game_to_screen_pos(RIGHT_BOUNDARY, 0)
         gutter_width = GUTTER_WIDTH * (ALLEY_SCREEN_WIDTH / LANE_WIDTH)
+
         # Draw the alley
         pygame.draw.rect(screen, BUTCHER_BLOCK,
                          pygame.Rect(left_boundary_x, 0, ALLEY_SCREEN_WIDTH, ALLEY_SCREEN_HEIGHT))
+
         # Draw the left gutter
         pygame.draw.rect(screen, BLACK,
                          pygame.Rect(left_gutter_x, 0, gutter_width, ALLEY_SCREEN_HEIGHT))
+
         # Draw the right gutter
         pygame.draw.rect(screen, BLACK,
                          pygame.Rect(right_gutter_x, 0, gutter_width, ALLEY_SCREEN_HEIGHT))
+
         # Display the background image
         # screen.blit(background, (0, 0))
+
+        # Handle events
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
@@ -271,6 +290,8 @@ def main():
                     trajectory_line.change_angle(0.5)
         if ball.state == BallState.STATIONARY:
             trajectory_line.display()
+        if ball.state == BallState.FINISHED:
+            pins = on_finish(ball, pins)
         ball.img.display()
         update_pins(ball, pins)
         pygame.display.update()
