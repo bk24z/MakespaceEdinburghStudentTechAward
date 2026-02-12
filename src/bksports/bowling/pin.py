@@ -84,7 +84,6 @@ class PinSet:
     Represents a set of bowling pins arranged in a standard triangular formation.
 
     :ivar space: References the pymunk Space the game exists in.
-    :ivar pins_hit: Stores the number of pins the ball hit in the current throw.
     :ivar pins: List of pins in the pin set. Each pin's state and position are managed individually.
     """
 
