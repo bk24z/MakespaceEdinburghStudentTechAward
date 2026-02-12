@@ -112,6 +112,7 @@ class Ball:
             # If the ball goes into the gutter, ...
             if has_entered_gutter:
                 print(f"GUTTER! x={self.x}")
+                self.body.velocity = (0, self.y)
                 if has_entered_left_gutter:
                     self.state = BallState.IN_LEFT_GUTTER
                 if has_entered_right_gutter:

@@ -193,13 +193,13 @@ class BowlingGame:
         print(f"Pins hit: {self.pin_set.pins_hit}")
         # If the frame has now finished after this throw
         if self.score_keeper.add_throw(self.pin_set.pins_hit):
-            self.pin_set = PinSet()  # Reset pins
-            self.throw_angle = 0  # Reset throw angle
+            self.pin_set = PinSet(self.space)  # Reset pins
             print(self.score_keeper)  # Show current game state TODO: Display on screen
             self.frame_state = BowlingFrameState.END_OF_FRAME
         else:
             self.pin_set.clean_up()  # Remove knocked pins
-        self.ball = Ball()  # Reset ball
+        self.ball = Ball(self.space)  # Reset ball
+        self.throw_angle = 0  # Reset throw angle
         self.pin_set.pins_hit = 0
 
     def handle_end_of_frame_state(self) -> None:
@@ -241,6 +241,8 @@ class BowlingGame:
                     self.display_trajectory_line()
                 elif self.ball.state == BallState.FINISHED:
                     self.handle_end_of_throw_state()
+                # Update ball state
+                self.ball.update()
                 # Display ball and pins
                 self.display_ball()
                 self.display_pins()
