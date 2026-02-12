@@ -97,9 +97,8 @@ class PinSet:
 
         :param space: The pymunk Space the game exists in.
         """
-        # Initialise other variables
+        # Initialise space
         self.space = space
-        self.pins_hit = 0
         # Reference constants
         h = consts.HALF_PIN_SPACING_H
         v = consts.PIN_SPACING_V
@@ -138,6 +137,17 @@ class PinSet:
             )
             # Add each pin's body and shape to the space
             self.space.add(pin.body, pin.shape)
+
+    @property
+    def pins_hit(self) -> int:
+        """Returns the number of pins that were hit in the last throw."""
+        return sum(
+            [
+                True
+                for pin in self.pins
+                if pin.shape.collision_type == consts.HIT_PIN_ID and not pin.removed
+            ]
+        )
 
     def clean_up(self) -> None:
         """Cleans up pins that have been hit by marking them as removed."""

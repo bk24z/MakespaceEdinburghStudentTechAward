@@ -200,7 +200,6 @@ class BowlingGame:
             self.pin_set.clean_up()  # Remove knocked pins
         self.ball = Ball(self.space)  # Reset ball
         self.throw_angle = 0  # Reset throw angle
-        self.pin_set.pins_hit = 0
 
     def handle_end_of_frame_state(self) -> None:
         """Handles logic and pygame rendering when the current frame has ended."""
