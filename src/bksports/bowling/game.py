@@ -24,32 +24,43 @@ def setup_bowling_scene(screen: pygame.Surface) -> None:
     # Fill the screen with a white background
     screen.fill(consts.WHITE)
     # Calculate the alley and gutter dimensions
-    left_boundary_x, _ = convert_game_to_screen_pos(consts.LEFT_BOUNDARY, 0)
-    right_boundary_x, _ = convert_game_to_screen_pos(consts.RIGHT_BOUNDARY, 0)
-    left_gutter_x, _ = convert_game_to_screen_pos(
-        consts.LEFT_BOUNDARY - consts.GUTTER_WIDTH, 0
+    _, right_boundary_y = convert_game_to_screen_pos(consts.RIGHT_BOUNDARY, 0)
+    _, left_gutter_y = convert_game_to_screen_pos(consts.LEFT_BOUNDARY, 0)
+    _, right_gutter_y = convert_game_to_screen_pos(
+        consts.RIGHT_BOUNDARY + consts.GUTTER_WIDTH,
+        0,
     )
-    right_gutter_x, _ = convert_game_to_screen_pos(consts.RIGHT_BOUNDARY, 0)
-    gutter_width = consts.GUTTER_WIDTH * (consts.ALLEY_SCREEN_WIDTH / consts.LANE_WIDTH)
+    gutter_screen_width = consts.GUTTER_WIDTH * (
+        consts.ALLEY_SCREEN_WIDTH / consts.LANE_WIDTH
+    )
     # Draw the alley
     pygame.draw.rect(
         screen,
         consts.BUTCHER_BLOCK,
         pygame.Rect(
-            left_boundary_x, 0, consts.ALLEY_SCREEN_WIDTH, consts.ALLEY_SCREEN_HEIGHT
+            (0, right_boundary_y),
+            (
+                consts.ALLEY_SCREEN_LENGTH,
+                consts.ALLEY_SCREEN_WIDTH + gutter_screen_width,
+            ),
+            # TODO: Find cause of random gap between left gutter and alley and remove temp. fix
         ),
     )
     # Draw the left gutter
     pygame.draw.rect(
         screen,
         consts.BLACK,
-        pygame.Rect(left_gutter_x, 0, gutter_width, consts.ALLEY_SCREEN_HEIGHT),
+        pygame.Rect(
+            (0, left_gutter_y), (consts.ALLEY_SCREEN_LENGTH, gutter_screen_width)
+        ),
     )
     # Draw the right gutter
     pygame.draw.rect(
         screen,
         consts.BLACK,
-        pygame.Rect(right_gutter_x, 0, gutter_width, consts.ALLEY_SCREEN_HEIGHT),
+        pygame.Rect(
+            (0, right_gutter_y), (consts.ALLEY_SCREEN_LENGTH, gutter_screen_width)
+        ),
     )
 
 
