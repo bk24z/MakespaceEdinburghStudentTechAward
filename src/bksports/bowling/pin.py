@@ -1,5 +1,3 @@
-import math
-from enum import Enum, auto
 from typing import Any
 
 import pymunk
@@ -25,7 +23,7 @@ class Pin:
     RADIUS = DIAMETER / 2  # inches
     MASS = 1.55  # kg
 
-    def __init__(self, x: float, y: float) -> None:
+    def __init__(self, x: float, y: float, *, collision_type: int) -> None:
         """Intialises a pin at a specific position."""
         self.removed = False
         self.body = pymunk.Body()
@@ -34,9 +32,7 @@ class Pin:
         self.shape.mass = self.MASS
         self.shape.friction = 1  # TODO: Tweak value
         self.shape.elasticity = 1  # TODO: Tweak value
-        self.shape.collision_type = (
-            12  # Correct collision type has not been assigned yet
-        )
+        self.shape.collision_type = collision_type
 
     @property
     def x(self) -> float:
@@ -105,34 +101,32 @@ class PinSet:
         # Intialise pins
         self.pins = [
             # First row
-            Pin(-h * 3, base_y + v * 3),
-            Pin(-h, base_y + v * 3),
-            Pin(h, base_y + v * 3),
-            Pin(h * 3, base_y + v * 3),
+            Pin(-h * 3, base_y + v * 3, collision_type=1),
+            Pin(-h, base_y + v * 3, collision_type=2),
+            Pin(h, base_y + v * 3, collision_type=3),
+            Pin(h * 3, base_y + v * 3, collision_type=4),
             # Second row
-            Pin(-h * 2, base_y + v * 2),
-            Pin(0, base_y + v * 2),
-            Pin(h * 2, base_y + v * 2),
+            Pin(-h * 2, base_y + v * 2, collision_type=5),
+            Pin(0, base_y + v * 2, collision_type=6),
+            Pin(h * 2, base_y + v * 2, collision_type=7),
             # Third row
-            Pin(-h, base_y + v),
-            Pin(h, base_y + v),
+            Pin(-h, base_y + v, collision_type=8),
+            Pin(h, base_y + v, collision_type=9),
             # Fourth row
-            Pin(0, base_y),
+            Pin(0, base_y, collision_type=10),
         ]
         # Add pins' bodies and shapes to the space
-        for i, pin in enumerate(self.pins, start=1):
-            # Assign collision type IDs 1 to 10 to each pin
-            pin.shape.collision_type = i
+        for pin in self.pins:
             # Intialise collision handlers for each pin
             self.space.on_collision(  # When the ball hits a pin that has not been hit by the ball
                 collision_type_a=consts.BALL_ID,
-                collision_type_b=i,
-                separate=self.pins[i - 1].on_hit,
+                collision_type_b=pin.shape.collision_type,
+                separate=pin.on_hit,
             )
             self.space.on_collision(  # When a pin that has been hit already hits another pin in a chain reaction
                 collision_type_a=consts.HIT_PIN_ID,
-                collision_type_b=i,
-                separate=self.pins[i - 1].on_hit,
+                collision_type_b=pin.shape.collision_type,
+                separate=pin.on_hit,
             )
             # Add each pin's body and shape to the space
             self.space.add(pin.body, pin.shape)
@@ -141,11 +135,9 @@ class PinSet:
     def pins_hit(self) -> int:
         """Returns the number of pins that were hit in the last throw."""
         return sum(
-            [
-                True
-                for pin in self.pins
-                if pin.shape.collision_type == consts.HIT_PIN_ID and not pin.removed
-            ]
+            1
+            for pin in self.pins
+            if pin.shape.collision_type == consts.HIT_PIN_ID and not pin.removed
         )
 
     def clean_up(self) -> None:
