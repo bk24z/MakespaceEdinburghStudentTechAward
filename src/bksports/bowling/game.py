@@ -12,6 +12,14 @@ from bksports.bowling.score_keeper import ScoreKeeper
 
 # background = pygame.image.load('../../assets/background.jpg')
 
+# Computed constants
+BALL_SCREEN_RADIUS = Ball.RADIUS * (consts.ALLEY_SCREEN_WIDTH / consts.LANE_WIDTH)
+BALL_SCREEN_WIDTH = BALL_SCREEN_RADIUS * 2
+BALL_SCREEN_HEIGHT = BALL_SCREEN_RADIUS * 2
+PIN_SCREEN_RADIUS = Pin.RADIUS * (consts.ALLEY_SCREEN_WIDTH / consts.LANE_WIDTH)
+PIN_SCREEN_WIDTH = PIN_SCREEN_RADIUS * 2
+PIN_SCREEN_HEIGHT = PIN_SCREEN_RADIUS * 2
+
 
 def setup_bowling_scene(screen: pygame.Surface) -> None:
     """
@@ -51,7 +59,8 @@ def setup_bowling_scene(screen: pygame.Surface) -> None:
         screen,
         consts.BLACK,
         pygame.Rect(
-            (0, left_gutter_y), (consts.ALLEY_SCREEN_LENGTH, gutter_screen_width)
+            (0, left_gutter_y),
+            (consts.ALLEY_SCREEN_LENGTH, gutter_screen_width),
         ),
     )
     # Draw the right gutter
@@ -59,18 +68,10 @@ def setup_bowling_scene(screen: pygame.Surface) -> None:
         screen,
         consts.BLACK,
         pygame.Rect(
-            (0, right_gutter_y), (consts.ALLEY_SCREEN_LENGTH, gutter_screen_width)
+            (0, right_gutter_y),
+            (consts.ALLEY_SCREEN_LENGTH, gutter_screen_width),
         ),
     )
-
-
-BALL_SCREEN_RADIUS = Ball.RADIUS * (consts.ALLEY_SCREEN_WIDTH / consts.LANE_WIDTH)
-BALL_SCREEN_WIDTH = BALL_SCREEN_RADIUS * 2
-BALL_SCREEN_HEIGHT = BALL_SCREEN_RADIUS * 2
-
-PIN_SCREEN_RADIUS = Pin.RADIUS * (consts.ALLEY_SCREEN_WIDTH / consts.LANE_WIDTH)
-PIN_SCREEN_WIDTH = PIN_SCREEN_RADIUS * 2
-PIN_SCREEN_HEIGHT = PIN_SCREEN_RADIUS * 2
 
 
 class BowlingFrameState(Enum):
@@ -90,11 +91,12 @@ class BowlingGame:
     :ivar clock: The Pygame Clock object used to manage frame rate and timekeeping.
     :ivar running: Indicates whether the game is running.
     :ivar frame_state: Indicates the state of the current frame in play.
-    :ivar _throw_angle: The angle at which the ball should be thrown at, and that the trajectory line should be at.
     :ivar ball: The ball object used in the game.
     :ivar pin_set: Contains and manages the set of pins in the game.
-    :ivar trajectory_line: Displays and calculates the trajectory of the ball based on its angle and position.
     :ivar score_keeper: Keeps track of the game score and manages throws.
+    :ivar _throw_angle: The angle at which the ball should be thrown at, and that the trajectory line should be at.
+    :ivar tl_start_pos: The start position of the trajectory line.
+    :ivar tl_end_pos: The start position of the trajectory line.
     """
 
     def __init__(self, screen: pygame.Surface, clock: pygame.time.Clock) -> None:
@@ -152,7 +154,12 @@ class BowlingGame:
         x, y = convert_game_to_screen_pos(self.ball.x, self.ball.y)
         # print(f"Ball screen pos: ({self.x}, {self.y})")
         # screen.blit(self.img, (self.x, self.y))
-        pygame.draw.circle(self.screen, consts.LIGHT_BLUE, (x, y), BALL_SCREEN_RADIUS)
+        pygame.draw.circle(
+            self.screen,
+            consts.LIGHT_BLUE,
+            (x, y),
+            BALL_SCREEN_RADIUS,
+        )
 
     def display_pins(self) -> None:
         """Displays the pins on the screen, at positions relative to their coordinates in the game space."""
@@ -178,7 +185,11 @@ class BowlingGame:
     def display_trajectory_line(self) -> None:
         """Displays the trajectory line on the screen, at its calcuated start and end positions."""
         pygame.draw.line(
-            self.screen, (255, 0, 0), self.tl_start_pos, self.tl_end_pos, 5
+            self.screen,
+            (255, 0, 0),
+            self.tl_start_pos,
+            self.tl_end_pos,
+            5,
         )
 
     def handle_waiting_for_throw_state(self) -> None:
@@ -194,6 +205,7 @@ class BowlingGame:
                     self.running = False
                 elif event.key == pygame.K_SPACE:
                     self.ball.throw(self.throw_angle, 317.0)
+                    # self.ball.throw(self.throw_angle, 1000)
                 elif event.key == pygame.K_LEFT:
                     self.throw_angle -= 0.5
                 elif event.key == pygame.K_RIGHT:
