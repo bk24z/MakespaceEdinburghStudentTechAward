@@ -74,6 +74,16 @@ class Ball:
         """Returns the y-component of the ball's current velocity."""
         return self.body.velocity.y
 
+    @property
+    def speed(self) -> float:
+        """Returns the speed of the ball, by using Pythogoras on the x and y components of the ball's velocity."""
+        return self.body.velocity.length
+
+    @property
+    def angle_of_movement(self) -> float:
+        """Returns the angle between the x and y components of the ball's velocity, in degrees."""
+        return self.body.velocity.angle_degrees
+
     def throw(self, angle: float, velocity: float) -> None:
         """
         Throw the ball in the given direction with the given velocity.
@@ -103,27 +113,36 @@ class Ball:
         has_entered_gutter = has_entered_left_gutter or has_entered_right_gutter
         is_finished = self.state == BallState.FINISHED
         in_gutter = self.state in (BallState.IN_LEFT_GUTTER, BallState.IN_RIGHT_GUTTER)
+        # print(self.state)
         if is_moving_in_lane:
+            print(
+                self.vx,
+                self.vy,
+                self.speed,
+                self.vy / (abs(self.vx) if self.vx != 0 else 1),
+            )
             # When the ball reaches the top of the lane, stop it
             if self.y > consts.LANE_LENGTH:
                 self.state = BallState.FINISHED
                 # self.y = consts.LANE_LENGTH
                 # self.on_finish()
-            # If the ball goes into the gutter, ...
-            if has_entered_gutter:
-                print(f"GUTTER! x={self.x}")
-                self.body.velocity = (0, self.y)
-                if has_entered_left_gutter:
-                    self.state = BallState.IN_LEFT_GUTTER
-                if has_entered_right_gutter:
-                    self.state = BallState.IN_RIGHT_GUTTER
-            # If the ball goes directly out of bounds, ...
-            if False:
-                self.state = BallState.OUT_OF_BOUNDS
-        if in_gutter:
-            # self.y += self.vy * dt  # Keep the ball moving vertically in the gutter
-            if (
-                self.y > consts.LANE_LENGTH
-            ):  # When the ball reaches the top of the lane, stop it
-                self.state = BallState.FINISHED
-                # self.y = consts.LANE_LENGTH
+            # If the ball passes a lane boundary
+            elif has_entered_gutter:
+                # If the ball goes directly out of bounds
+                if (
+                        self.vy / abs(self.vx) < 10 and self.speed > 500
+                ):  # TODO: Tweak values
+                    # self.state = BallState.OUT_OF_BOUNDS
+                    pass
+                else:
+                    print(f"GUTTER! x={self.x}")
+                    self.body.velocity = (0, self.vy)
+                    if has_entered_left_gutter:
+                        self.state = BallState.IN_LEFT_GUTTER
+                    if has_entered_right_gutter:
+                        self.state = BallState.IN_RIGHT_GUTTER
+        if (
+                in_gutter and self.y > consts.LANE_LENGTH
+        ):  # When the ball reaches the top of the lane, stop it
+            self.state = BallState.FINISHED
+            # self.y = consts.LANE_LENGTH
