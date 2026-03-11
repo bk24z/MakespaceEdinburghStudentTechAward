@@ -10,7 +10,6 @@ requires-python = ">=3.14"
 dependencies = [
     "pygame",
     "pymunk>=7.2.0",
-    "ruff>=0.15.0",
 ]
 
 [build-system]
@@ -18,4 +17,4 @@ requires = ["uv_build>=0.9.26,<0.10.0"]
 build-backend = "uv_build"
 
 [project.scripts]
-start = "bksports.main:main"
+bksports = "bksports.main:main"
