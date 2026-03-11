@@ -75,8 +75,8 @@ def setup_bowling_scene(screen: pygame.Surface) -> None:
 
 
 class BowlingFrameState(Enum):
-    WAITING_FOR_THROW = auto()
-    END_OF_FRAME = auto()
+    IN_PROGRESS = auto()
+    ENDED = auto()
 
 
 class BowlingGame:
@@ -114,7 +114,7 @@ class BowlingGame:
         self.clock = clock
         # Intialise game state variables
         self.running = True
-        self.frame_state = BowlingFrameState.WAITING_FOR_THROW
+        self.frame_state = BowlingFrameState.IN_PROGRESS
         # Initialise game objects
         self.ball = Ball(self.space)
         self.pin_set = PinSet(self.space)
@@ -194,8 +194,6 @@ class BowlingGame:
 
     def handle_waiting_for_throw_state(self) -> None:
         """Handles logic and pygame rendering when the game is waiting for the user to make a throw."""
-        # Set up scene
-        setup_bowling_scene(self.screen)
         # Handle events
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -218,7 +216,7 @@ class BowlingGame:
         if self.score_keeper.add_throw(self.pin_set.pins_hit):
             self.pin_set = PinSet(self.space)  # Reset pins
             print(self.score_keeper)  # Show current game state TODO: Display on screen
-            self.frame_state = BowlingFrameState.END_OF_FRAME
+            self.frame_state = BowlingFrameState.ENDED
         else:
             self.pin_set.clean_up()  # Remove knocked pins
         self.ball = Ball(self.space)  # Reset ball
@@ -231,7 +229,7 @@ class BowlingGame:
             if event.type == pygame.QUIT:
                 self.running = False
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
-                self.frame_state = BowlingFrameState.WAITING_FOR_THROW
+                self.frame_state = BowlingFrameState.IN_PROGRESS
         pygame.display.update()
         self.space.step(1 / consts.FRAMES_PER_SECOND)
 
@@ -257,21 +255,23 @@ class BowlingGame:
             if self.score_keeper.finished:
                 self.handle_finished_game()
             # If the game is waiting for the player to throw the ball
-            elif self.frame_state == BowlingFrameState.WAITING_FOR_THROW:
-                self.handle_waiting_for_throw_state()
-                if self.ball.state == BallState.STATIONARY:
-                    self.display_trajectory_line()
-                elif self.ball.state == BallState.FINISHED:
+            elif self.frame_state == BowlingFrameState.IN_PROGRESS:
+                setup_bowling_scene(self.screen)
+                if self.ball.state == BallState.FINISHED:
                     self.handle_end_of_throw_state()
-                # Update ball state
-                self.ball.update()
-                # Display ball and pins
-                self.display_ball()
-                self.display_pins()
-                pygame.display.update()
-                # Limit FPS to 60, and updates per frame to 1/60
-                self.clock.tick(consts.FRAMES_PER_SECOND)
-                self.space.step(1 / consts.FRAMES_PER_SECOND)
+                else:
+                    if self.ball.state == BallState.STATIONARY:
+                        self.handle_waiting_for_throw_state()
+                        self.display_trajectory_line()
+                    # Update ball state
+                    self.ball.update()
+                    # Display ball and pins
+                    self.display_ball()
+                    self.display_pins()
+                    pygame.display.update()
+                    # Limit FPS to 60, and updates per frame to 1/60
+                    self.clock.tick(consts.FRAMES_PER_SECOND)
+                    self.space.step(1 / consts.FRAMES_PER_SECOND)
             # If the current frame has ended
-            elif self.frame_state == BowlingFrameState.END_OF_FRAME:
+            elif self.frame_state == BowlingFrameState.ENDED:
                 self.handle_end_of_frame_state()
