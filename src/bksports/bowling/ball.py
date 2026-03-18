@@ -59,6 +59,26 @@ class Ball:
         """Returns the x-coordinate of the ball's current position."""
         return self.body.position.x
 
+    @x.setter
+    def x(self, value: float) -> None:
+        """
+        Handles changing the x-coordinate of the ball's current position to a new value.
+
+        Sets the ball's x-coordinate to a new value if that new value is valid (it must be within the range
+        of the left and right boundary values inclusive) and the ball is stationary.
+
+        :param value: The new value for the ball's x-coordinate.
+        """
+        if (
+            consts.LEFT_BOUNDARY <= value <= consts.RIGHT_BOUNDARY
+            and self.state == BallState.STATIONARY
+        ):
+            self.body.position = (value, self.y)
+        # elif value < consts.LEFT_BOUNDARY:
+        #     self.body.position = (consts.LEFT_BOUNDARY, self.y)
+        # elif value > consts.RIGHT_BOUNDARY:
+        #     self.body.position = (consts.RIGHT_BOUNDARY, self.y)
+
     @property
     def y(self) -> float:
         """Returns the y-coordinate of the ball's current position."""
@@ -130,7 +150,7 @@ class Ball:
             elif has_entered_gutter:
                 # If the ball goes directly out of bounds
                 if (
-                        self.vy / abs(self.vx) < 10 and self.speed > 500
+                    self.vy / abs(self.vx) < 10 and self.speed > 500
                 ):  # TODO: Tweak values
                     # self.state = BallState.OUT_OF_BOUNDS
                     pass
@@ -142,7 +162,7 @@ class Ball:
                     if has_entered_right_gutter:
                         self.state = BallState.IN_RIGHT_GUTTER
         if (
-                in_gutter and self.y > consts.LANE_LENGTH
+            in_gutter and self.y > consts.LANE_LENGTH
         ):  # When the ball reaches the top of the lane, stop it
             self.state = BallState.FINISHED
             # self.y = consts.LANE_LENGTH

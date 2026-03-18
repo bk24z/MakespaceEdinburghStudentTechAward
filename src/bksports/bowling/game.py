@@ -51,7 +51,6 @@ def setup_bowling_scene(screen: pygame.Surface) -> None:
                 consts.ALLEY_SCREEN_LENGTH,
                 consts.ALLEY_SCREEN_WIDTH + gutter_screen_width,
             ),
-            # TODO: Find cause of random gap between left gutter and alley and remove temp. fix
         ),
     )
     # Draw the left gutter
@@ -91,6 +90,7 @@ class BowlingGame:
     :ivar clock: The Pygame Clock object used to manage frame rate and timekeeping.
     :ivar running: Indicates whether the game is running.
     :ivar frame_state: Indicates the state of the current frame in play.
+    :ivar move_mode_active: Indicates whether the game is in move mode (moving the ball) or not (changing throw angle).
     :ivar ball: The ball object used in the game.
     :ivar pin_set: Contains and manages the set of pins in the game.
     :ivar score_keeper: Keeps track of the game score and manages throws.
@@ -115,6 +115,7 @@ class BowlingGame:
         # Intialise game state variables
         self.running = True
         self.frame_state = BowlingFrameState.IN_PROGRESS
+        self.move_mode_active = True
         # Initialise game objects
         self.ball = Ball(self.space)
         self.pin_set = PinSet(self.space)
@@ -204,10 +205,23 @@ class BowlingGame:
                 elif event.key == pygame.K_SPACE:
                     self.ball.throw(self.throw_angle, 317.0)
                     # self.ball.throw(self.throw_angle, 1000)
+                elif event.key == pygame.K_s:
+                    self.move_mode_active = not self.move_mode_active
+                    print(
+                        f"Ball Adjustment Mode: {'Move' if self.move_mode_active else 'Change Angle'}",
+                    )
                 elif event.key == pygame.K_LEFT:
-                    self.throw_angle -= 0.5
+                    if self.move_mode_active:
+                        self.ball.x -= 10
+                        self.calculate_trajectory_line_pos()
+                    else:
+                        self.throw_angle -= 0.5
                 elif event.key == pygame.K_RIGHT:
-                    self.throw_angle += 0.5
+                    if self.move_mode_active:
+                        self.ball.x += 10
+                        self.calculate_trajectory_line_pos()
+                    else:
+                        self.throw_angle += 0.5
 
     def handle_end_of_throw_state(self) -> None:
         """Handles logic and pygame rendering when the current throw has just ended."""
