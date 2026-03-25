@@ -5,6 +5,7 @@ All physical/game measurements for the bowling game (lane, ball, pin dimensions)
 with bowling industry standards. Screen dimensions are in pixels.
 """
 
+# =================
 # General Constants
 # =================
 
@@ -24,6 +25,7 @@ BLUE = (0, 0, 255)
 LIGHT_BLUE = (173, 216, 230)
 BUTCHER_BLOCK = (190, 172, 76)  # Bowling lane colour
 
+# =================
 # Bowling Constants
 # =================
 
