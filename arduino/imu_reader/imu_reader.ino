@@ -6,12 +6,14 @@ AK09918_err_type_t err;
 int32_t x, y, z;
 AK09918 ak09918;
 ICM20600 icm20600(true);
-int16_t acc_x, acc_y, acc_z;
+// int16_t acc_x, acc_y, acc_z;
 int32_t offset_x, offset_y, offset_z;
-double roll, pitch;
+// double roll, pitch;
 // Find the magnetic declination at your location
 // http://www.magnetic-declination.com/
-double declination = -0.43;
+// double declination = -0.43;
+
+
 
 void setup() {
     // join I2C bus (I2Cdev library doesn't do this automatically)
@@ -25,73 +27,23 @@ void setup() {
 
     err = ak09918.isDataReady();
     while (err != AK09918_ERR_OK) {
-        Serial.println("Waiting Sensor");
+        Serial.println("0"); // Waiting for connection to sensor
         delay(100);
         err = ak09918.isDataReady();
     }
 
-    Serial.println("Start figure-8 calibration after 2 seconds.");
+    Serial.println("1"); // Start figure-8 calibration after 2 seconds.
     delay(2000);
     calibrate(10000, &offset_x, &offset_y, &offset_z);
-    Serial.println("");
+    Serial.println("3"); // Calibrated
 }
 
 void loop() {
-    // get acceleration
-    acc_x = icm20600.getAccelerationX();
-    acc_y = icm20600.getAccelerationY();
-    acc_z = icm20600.getAccelerationZ();
-
-    Serial.print("A:  ");
-    Serial.print(acc_x);
-    Serial.print(",  ");
-    Serial.print(acc_y);
-    Serial.print(",  ");
-    Serial.print(acc_z);
-    Serial.println(" mg");
-
-    Serial.print("G:  ");
+    Serial.print("4,");
     Serial.print(icm20600.getGyroscopeX());
-    Serial.print(",  ");
-    Serial.print(icm20600.getGyroscopeY());
-    Serial.print(",  ");
-    Serial.print(icm20600.getGyroscopeZ());
-    Serial.println(" dps");
-
-    ak09918.getData(&x, &y, &z);
-    x = x - offset_x;
-    y = y - offset_y;
-    z = z - offset_z;
-
-    Serial.print("M:  ");
-    Serial.print(x);
-    Serial.print(",  ");
-    Serial.print(y);
-    Serial.print(",  ");
-    Serial.print(z);
-    Serial.println(" uT");
-
-    // roll/pitch in radian
-    roll = atan2((float)acc_y, (float)acc_z);
-    pitch = atan2(-(float)acc_x, sqrt((float)acc_y * acc_y + (float)acc_z * acc_z));
-    Serial.print("Roll: ");
-    Serial.println(roll * 57.3);
-    Serial.print("Pitch: ");
-    Serial.println(pitch * 57.3);
-
-    double Xheading = x * cos(pitch) + y * sin(roll) * sin(pitch) + z * cos(roll) * sin(pitch);
-    double Yheading = y * cos(roll) - z * sin(pitch);
-
-
-    double heading = 180 + 57.3 * atan2(Yheading, Xheading) + declination;
-
-    Serial.print("Heading: ");
-    Serial.println(heading);
-    Serial.println("--------------------------------");
-
-    // delay(500);
-    delay(500*10);
-
+    Serial.print(",");
+    Serial.println(icm20600.getGyroscopeY());
+    delay(500);
 }
 
 void calibrate(uint32_t timeout, int32_t* offsetx, int32_t* offsety, int32_t* offsetz) {
@@ -154,7 +106,7 @@ void calibrate(uint32_t timeout, int32_t* offsetx, int32_t* offsety, int32_t* of
             // Serial.println(value_z_max);
         }
 
-        Serial.print(".");
+        Serial.println("2"); // Calibrating
         delay(100);
 
     }
@@ -163,3 +115,61 @@ void calibrate(uint32_t timeout, int32_t* offsetx, int32_t* offsety, int32_t* of
     *offsety = value_y_min + (value_y_max - value_y_min) / 2;
     *offsetz = value_z_min + (value_z_max - value_z_min) / 2;
 }
+
+// void full_loop() {
+//     // get acceleration
+//     acc_x = icm20600.getAccelerationX();
+//     acc_y = icm20600.getAccelerationY();
+//     acc_z = icm20600.getAccelerationZ();
+
+//     Serial.print("A:  ");
+//     Serial.print(acc_x);
+//     Serial.print(",  ");
+//     Serial.print(acc_y);
+//     Serial.print(",  ");
+//     Serial.print(acc_z);
+//     Serial.println(" mg");
+
+//     Serial.print("G:  ");
+//     Serial.print(icm20600.getGyroscopeX());
+//     Serial.print(",  ");
+//     Serial.print(icm20600.getGyroscopeY());
+//     Serial.print(",  ");
+//     Serial.print(icm20600.getGyroscopeZ());
+//     Serial.println(" dps");
+
+//     ak09918.getData(&x, &y, &z);
+//     x = x - offset_x;
+//     y = y - offset_y;
+//     z = z - offset_z;
+
+//     Serial.print("M:  ");
+//     Serial.print(x);
+//     Serial.print(",  ");
+//     Serial.print(y);
+//     Serial.print(",  ");
+//     Serial.print(z);
+//     Serial.println(" uT");
+
+//     // roll/pitch in radian
+//     roll = atan2((float)acc_y, (float)acc_z);
+//     pitch = atan2(-(float)acc_x, sqrt((float)acc_y * acc_y + (float)acc_z * acc_z));
+//     Serial.print("Roll: ");
+//     Serial.println(roll * 57.3);
+//     Serial.print("Pitch: ");
+//     Serial.println(pitch * 57.3);
+
+//     double Xheading = x * cos(pitch) + y * sin(roll) * sin(pitch) + z * cos(roll) * sin(pitch);
+//     double Yheading = y * cos(roll) - z * sin(pitch);
+
+
+//     double heading = 180 + 57.3 * atan2(Yheading, Xheading) + declination;
+
+//     Serial.print("Heading: ");
+//     Serial.println(heading);
+//     Serial.println("--------------------------------");
+
+//     delay(500);
+//     // delay(500*1.5);
+
+// }
