@@ -13,12 +13,14 @@ source = { editable = "." }
 dependencies = [
     { name = "pygame" },
     { name = "pymunk" },
+    { name = "pyserial" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "pygame" },
     { name = "pymunk", specifier = ">=7.2.0" },
+    { name = "pyserial", specifier = ">=3.5" },
 ]
 
 [[package]]
@@ -85,4 +87,13 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/ff/f4/fa78d475a4ac2a21a2b4a360bf51f3fa3ef5197b1a580349edccd7df37cb/pymunk-7.2.0-cp314-cp314-musllinux_1_2_x86_64.whl", hash = "sha256:906727631afc30b2e7fea7b18cabe4ef1d5031263e9726e44b7edfb11f053d37", size = 1014409, upload-time = "2025-11-02T18:47:10.942Z" },
     { url = "https://files.pythonhosted.org/packages/eb/5e/4aa007a14720c6c26e1a2fb20fb3e54523770066f5c6be5695265bdf526f/pymunk-7.2.0-cp314-cp314-win32.whl", hash = "sha256:17f9ae8851aed0128ccd9e892f9f89cc16be8aa96c675cbe616e707ac31b65ed", size = 321669, upload-time = "2025-11-02T18:47:33.087Z" },
     { url = "https://files.pythonhosted.org/packages/08/d5/c6c5903ab58f49babc70a2eb227d67dab71b37898f8c3cf0df0d27f7c6c5/pymunk-7.2.0-cp314-cp314-win_amd64.whl", hash = "sha256:8e6ac2d25254f3f85361e1845ca779fabf4208ba934e2f144292e7596334ae2b", size = 372418, upload-time = "2025-11-02T18:47:34.631Z" },
+]
+
+[[package]]
+name = "pyserial"
+version = "3.5"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/1e/7d/ae3f0a63f41e4d2f6cb66a5b57197850f919f59e558159a4dd3a818f5082/pyserial-3.5.tar.gz", hash = "sha256:3c77e014170dfffbd816e6ffc205e9842efb10be9f58ec16d3e8675b4925cddb", size = 159125, upload-time = "2020-11-23T03:59:15.045Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/07/bc/587a445451b253b285629263eb51c2d8e9bcea4fc97826266d186f96f558/pyserial-3.5-py2.py3-none-any.whl", hash = "sha256:c4451db6ba391ca6ca299fb3ec7bae67a5c55dde170964c7a14ceefec02f2cf0", size = 90585, upload-time = "2020-11-23T03:59:13.41Z" },
 ]
