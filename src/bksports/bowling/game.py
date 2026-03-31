@@ -210,13 +210,13 @@ class BowlingGame:
                     print(
                         f"Ball Adjustment Mode: {'Move' if self.move_mode_active else 'Change Angle'}",
                     )
-                elif event.key == pygame.K_LEFT:
+                elif event.key in [pygame.K_LEFT, pygame.K_DOWN]:
                     if self.move_mode_active:
                         self.ball.x -= 10
                         self.calculate_trajectory_line_pos()
                     else:
                         self.throw_angle -= 0.5
-                elif event.key == pygame.K_RIGHT:
+                elif event.key in [pygame.K_RIGHT, pygame.K_UP]:
                     if self.move_mode_active:
                         self.ball.x += 10
                         self.calculate_trajectory_line_pos()
