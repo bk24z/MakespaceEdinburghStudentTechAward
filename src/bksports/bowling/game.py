@@ -5,6 +5,7 @@ import pygame
 import pymunk
 
 import bksports.constants as consts
+from bksports.bowling.arduino import ArduinoController, ArduinoState
 from bksports.bowling.ball import Ball, BallState
 from bksports.bowling.conversions import convert_game_to_screen_pos
 from bksports.bowling.pin import Pin, PinSet
@@ -73,6 +74,17 @@ def setup_bowling_scene(screen: pygame.Surface) -> None:
     )
 
 
+def calculate_ball_speed(max_gyroscope_x: float, max_gyroscope_y: float) -> float:
+    """
+    Calculates the speed of a ball based on gyroscopic measurements from the Arduino.
+
+    :param max_gyroscope_x: The maximum measured x-axis gyroscope value in degrees per second.
+    :param max_gyroscope_y: The maximum measured y-axis gyroscope value in degrees per second.
+    :return: The calculated ball speed.
+    """
+    return math.sqrt(max_gyroscope_x**2 + max_gyroscope_y**2) * 10
+
+
 class BowlingFrameState(Enum):
     IN_PROGRESS = auto()
     ENDED = auto()
@@ -94,6 +106,9 @@ class BowlingGame:
     :ivar ball: The ball object used in the game.
     :ivar pin_set: Contains and manages the set of pins in the game.
     :ivar score_keeper: Keeps track of the game score and manages throws.
+    :ivar arduino_controller: Handles connecting to the Arduino for throw velocity measurements.
+    :ivar max_gyroscope_x: The maximum measured x-axis gyroscope value in degrees per second.
+    :ivar max_gyroscope_y: The maximum measured y-axis gyroscope value in degrees per second.
     :ivar _throw_angle: The angle at which the ball should be thrown at, and that the trajectory line should be at.
     :ivar tl_start_pos: The start position of the trajectory line.
     :ivar tl_end_pos: The start position of the trajectory line.
@@ -120,6 +135,10 @@ class BowlingGame:
         self.ball = Ball(self.space)
         self.pin_set = PinSet(self.space)
         self.score_keeper = ScoreKeeper()
+        # Intialise Arduino controller
+        self.arduino_controller = ArduinoController()
+        self.max_gyroscope_x = 0
+        self.max_gyroscope_y = 0
         # Intialise other game variables
         self._throw_angle = 0.0
         self.tl_start_pos = None
@@ -193,18 +212,37 @@ class BowlingGame:
             5,
         )
 
+    def check_for_throw(self) -> None:
+        """Handles checking for throw measurements, and throwing the ball in-game accordingly."""
+        if (
+            pygame.key.get_pressed()[pygame.K_SPACE]
+            and self.arduino_controller.state == ArduinoState.CONNECTED
+        ):
+            self.max_gyroscope_x, self.max_gyroscope_y = (
+                self.arduino_controller.readline()
+            )
+        if not pygame.key.get_pressed()[pygame.K_SPACE] and (
+            self.max_gyroscope_x != 0 or self.max_gyroscope_y != 0
+        ):
+            # self.ball.throw(self.throw_angle, 317.0)
+            self.ball.throw(
+                self.throw_angle,
+                calculate_ball_speed(self.max_gyroscope_x, self.max_gyroscope_y),
+            )
+        print(self.max_gyroscope_x, self.max_gyroscope_y)
+
     def handle_waiting_for_throw_state(self) -> None:
         """Handles logic and pygame rendering when the game is waiting for the user to make a throw."""
-        # Handle events
+        self.check_for_throw()
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
-            elif event.type == pygame.KEYDOWN:
+            elif (
+                event.type == pygame.KEYDOWN
+                and not pygame.key.get_pressed()[pygame.K_SPACE]
+            ):
                 if event.key == pygame.K_ESCAPE:
                     self.running = False
-                elif event.key == pygame.K_SPACE:
-                    self.ball.throw(self.throw_angle, 317.0)
-                    # self.ball.throw(self.throw_angle, 1000)
                 elif event.key == pygame.K_s:
                     self.move_mode_active = not self.move_mode_active
                     print(
@@ -235,6 +273,7 @@ class BowlingGame:
             self.pin_set.clean_up()  # Remove knocked pins
         self.ball = Ball(self.space)  # Reset ball
         self.throw_angle = 0  # Reset throw angle
+        self.max_gyroscope_x = self.max_gyroscope_y = 0  # Reset gyroscope measurements
 
     def handle_end_of_frame_state(self) -> None:
         """Handles logic and pygame rendering when the current frame has ended."""
@@ -242,12 +281,13 @@ class BowlingGame:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
-            elif event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+            elif event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
                 self.frame_state = BowlingFrameState.IN_PROGRESS
         pygame.display.update()
         self.space.step(1 / consts.FRAMES_PER_SECOND)
 
     def handle_finished_game(self) -> None:
+        """Handles logic and pygame rendering when the bowling game has finished."""
         self.screen.fill(consts.BLACK)
         for event in pygame.event.get():
             if event.type == pygame.QUIT or (
@@ -264,28 +304,31 @@ class BowlingGame:
         Loops through listening for keystroke events, displaying elements on screen, and updating game state
         accordingly while the game is running. Also limits the game to run at 60fps.
         """
-        while self.running:
-            # If the game is finished
-            if self.score_keeper.finished:
-                self.handle_finished_game()
-            # If the game is waiting for the player to throw the ball
-            elif self.frame_state == BowlingFrameState.IN_PROGRESS:
-                setup_bowling_scene(self.screen)
-                if self.ball.state == BallState.FINISHED:
-                    self.handle_end_of_throw_state()
-                else:
-                    if self.ball.state == BallState.STATIONARY:
-                        self.handle_waiting_for_throw_state()
-                        self.display_trajectory_line()
-                    # Update ball state
-                    self.ball.update()
-                    # Display ball and pins
-                    self.display_ball()
-                    self.display_pins()
-                    pygame.display.update()
-                    # Limit FPS to 60, and updates per frame to 1/60
-                    self.clock.tick(consts.FRAMES_PER_SECOND)
-                    self.space.step(1 / consts.FRAMES_PER_SECOND)
-            # If the current frame has ended
-            elif self.frame_state == BowlingFrameState.ENDED:
-                self.handle_end_of_frame_state()
+        try:
+            while self.running:
+                # If the game is finished
+                if self.score_keeper.finished:
+                    self.handle_finished_game()
+                # If the game is waiting for the player to throw the ball
+                elif self.frame_state == BowlingFrameState.IN_PROGRESS:
+                    setup_bowling_scene(self.screen)
+                    if self.ball.state == BallState.FINISHED:
+                        self.handle_end_of_throw_state()
+                    else:
+                        if self.ball.state == BallState.STATIONARY:
+                            self.handle_waiting_for_throw_state()
+                            self.display_trajectory_line()
+                        # Update ball state
+                        self.ball.update()
+                        # Display ball and pins
+                        self.display_ball()
+                        self.display_pins()
+                        pygame.display.update()
+                        # Limit FPS to 60, and updates per frame to 1/60
+                        self.clock.tick(consts.FRAMES_PER_SECOND)
+                        self.space.step(1 / consts.FRAMES_PER_SECOND)
+                # If the current frame has ended
+                elif self.frame_state == BowlingFrameState.ENDED:
+                    self.handle_end_of_frame_state()
+        finally:
+            self.arduino_controller.close()
