@@ -10,11 +10,15 @@ class ArduinoState(Enum):
     WAITING = 0
     CONNECTED = 1
     MEASURING = 2
-    FINISHED = 3
 
     @property
     def message(self) -> str:
-        return f"{self.name.title()}."
+        """Returns a message describing the current state."""
+        match self:
+            case ArduinoState.WAITING:
+                return "Not connected. Waiting for connection..."
+            case _:
+                return f"{self.name.title()}."
 
 
 def get_state(value: int) -> ArduinoState:
@@ -25,26 +29,26 @@ def get_state(value: int) -> ArduinoState:
     return output
 
 
-# def calculate_ball_speed(
-#     gyroscope_x_data: list[int], gyroscope_y_data: list[int],
-# ) -> float:
-#     gyroscope_x_max, gyroscope_y_max = max(g_x_data), max(g_y_data)
-#     return gyroscope_y_max
-
-
 class ArduinoController:
     def __init__(self) -> None:
         self.state = ArduinoState.WAITING  # Waiting for Arduino input
-        self.ser = serial.Serial("/dev/cu.usbmodem0000011", 9600, timeout=1)
-        time.sleep(2)  # Wait for Arduino to start up
-        self.connect()
+        try:
+            self.ser = serial.Serial("/dev/cu.usbmodem0000011", 9600, timeout=1)
+            time.sleep(2)  # Wait for Arduino to start up
+            self.connect_to_serial()
+        except serial.SerialException:
+            self.state = ArduinoState.ERROR
+            print(
+                "Arduino is not connected. Connect Arduino and press C in the game window to retry connecting.",
+            )
 
     def close(self) -> None:
+        """Closes the Arduino serial port."""
         self.ser.close()
         self.state = ArduinoState.WAITING
         print("Serial port closed.")
 
-    def connect(self) -> None:
+    def connect_to_serial(self) -> None:
         """
         Establishes connection to Arduino and prepares the program to read its serial port.
 
@@ -76,7 +80,8 @@ class ArduinoController:
         self.state = get_state(int(new_state_str))
         data = tuple(map(int, str_data))
         # print(self.state.message, data)
-        self.state = ArduinoState.CONNECTED
+        if self.state != ArduinoState.ERROR:
+            self.state = ArduinoState.CONNECTED
         return data
 
     def read(self, condition: Callable[[], bool]) -> tuple[list[int], list[int]]:
