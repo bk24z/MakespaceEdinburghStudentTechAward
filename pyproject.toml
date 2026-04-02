@@ -6,15 +6,15 @@ readme = "README.md"
 authors = [
     { name = "bk24z", email = "bradsthedeveloper@gmail.com" }
 ]
-requires-python = ">=3.14"
+requires-python = ">=3.12,<3.13"
 dependencies = [
-    "pygame",
+    "pygame>=2.6.1",
     "pymunk>=7.2.0",
     "pyserial>=3.5",
 ]
 
 [build-system]
-requires = ["uv_build>=0.9.26,<0.10.0"]
+requires = ["uv_build>=0.11.2,<0.12.0"]
 build-backend = "uv_build"
 
 [project.scripts]
