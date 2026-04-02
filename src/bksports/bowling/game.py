@@ -1,5 +1,6 @@
 import math
 from enum import Enum, auto
+from pathlib import Path
 
 import pygame
 import pymunk
@@ -22,59 +23,24 @@ PIN_SCREEN_WIDTH = PIN_SCREEN_RADIUS * 2
 PIN_SCREEN_HEIGHT = PIN_SCREEN_RADIUS * 2
 
 
-def setup_bowling_scene(screen: pygame.Surface) -> None:
-    """
-    Sets up the bowling scene.
-
-    Renders the background, alley, and gutters on the provided screen.
-
-    :param screen: The screen surface where the bowling scene will be drawn.
-    """
-    # Fill the screen with a white background
-    screen.fill(consts.WHITE)
-    # Calculate the alley and gutter dimensions
-    _, right_boundary_y = convert_game_to_screen_pos(consts.RIGHT_BOUNDARY, 0)
-    _, left_gutter_y = convert_game_to_screen_pos(consts.LEFT_BOUNDARY, 0)
-    _, right_gutter_y = convert_game_to_screen_pos(
-        consts.RIGHT_BOUNDARY + consts.GUTTER_WIDTH,
-        0,
-    )
-    gutter_screen_width = consts.GUTTER_WIDTH * (
-        consts.ALLEY_SCREEN_WIDTH / consts.LANE_WIDTH
-    )
-    # Draw the alley
-    pygame.draw.rect(
-        screen,
-        consts.BUTCHER_BLOCK,
-        pygame.Rect(
-            (0, right_boundary_y),
-            (
-                consts.ALLEY_SCREEN_LENGTH,
-                consts.ALLEY_SCREEN_WIDTH + gutter_screen_width,
-            ),
-        ),
-    )
-    # Draw the left gutter
-    pygame.draw.rect(
-        screen,
-        consts.BLACK,
-        pygame.Rect(
-            (0, left_gutter_y),
-            (consts.ALLEY_SCREEN_LENGTH, gutter_screen_width),
-        ),
-    )
-    # Draw the right gutter
-    pygame.draw.rect(
-        screen,
-        consts.BLACK,
-        pygame.Rect(
-            (0, right_gutter_y),
-            (consts.ALLEY_SCREEN_LENGTH, gutter_screen_width),
-        ),
-    )
+class BowlingFrameState(Enum):
+    IN_PROGRESS = auto()
+    ENDED = auto()
 
 
-def calculate_ball_speed(max_gyroscope_x: float, max_gyroscope_y: float) -> float:
+class BallAdjustmentMode(Enum):
+    X_POSITION = auto()
+    ROTATION = auto()
+
+
+class GameControlMode(Enum):
+    MOTION = auto()
+    KEYBOARD = auto()
+
+
+def calculate_ball_speed_from_throw(
+    max_gyroscope_x: float, max_gyroscope_y: float
+) -> float:
     """
     Calculates the speed of a ball based on gyroscopic measurements from the Arduino.
 
@@ -83,11 +49,6 @@ def calculate_ball_speed(max_gyroscope_x: float, max_gyroscope_y: float) -> floa
     :return: The calculated ball speed.
     """
     return math.sqrt(max_gyroscope_x**2 + max_gyroscope_y**2) * 10
-
-
-class BowlingFrameState(Enum):
-    IN_PROGRESS = auto()
-    ENDED = auto()
 
 
 class BowlingGame:
@@ -102,7 +63,8 @@ class BowlingGame:
     :ivar clock: The Pygame Clock object used to manage frame rate and timekeeping.
     :ivar running: Indicates whether the game is running.
     :ivar frame_state: Indicates the state of the current frame in play.
-    :ivar move_mode_active: Indicates whether the game is in move mode (moving the ball) or not (changing throw angle).
+    :ivar ball_adjustment_mode: Indicates whether the ball is being moved horizontally or rotated
+    :ivar control_mode: Indicates whether the game is being controlled with the keyboard or through motion controls.
     :ivar ball: The ball object used in the game.
     :ivar pin_set: Contains and manages the set of pins in the game.
     :ivar score_keeper: Keeps track of the game score and manages throws.
@@ -130,13 +92,16 @@ class BowlingGame:
         # Intialise game state variables
         self.running = True
         self.frame_state = BowlingFrameState.IN_PROGRESS
-        self.move_mode_active = True
+        self.ball_adjustment_mode = BallAdjustmentMode.X_POSITION
+        self.control_mode = GameControlMode.MOTION
         # Initialise game objects
         self.ball = Ball(self.space)
         self.pin_set = PinSet(self.space)
         self.score_keeper = ScoreKeeper()
         # Intialise Arduino controller
         self.arduino_controller = ArduinoController()
+        if self.arduino_controller.state == ArduinoState.ERROR:
+            self.control_mode = GameControlMode.KEYBOARD
         self.max_gyroscope_x = 0
         self.max_gyroscope_y = 0
         # Intialise other game variables
@@ -167,6 +132,106 @@ class BowlingGame:
             self.calculate_trajectory_line_pos()
         # print(self.throw_angle)
         # print(self.trajectory_line.angle)
+
+    def display_bowling_scene(self) -> None:
+        """
+        Sets up the bowling scene.
+
+        Renders the background, alley, and gutters on the provided screen.
+
+        :param screen: The screen surface where the bowling scene will be drawn.
+        """
+        # Fill the screen with a white background
+        self.screen.fill(consts.WHITE)
+        # Calculate the alley and gutter dimensions
+        _, right_boundary_y = convert_game_to_screen_pos(consts.RIGHT_BOUNDARY, 0)
+        _, left_gutter_y = convert_game_to_screen_pos(consts.LEFT_BOUNDARY, 0)
+        _, right_gutter_y = convert_game_to_screen_pos(
+            consts.RIGHT_BOUNDARY + consts.GUTTER_WIDTH,
+            0,
+        )
+        gutter_screen_width = consts.GUTTER_WIDTH * (
+            consts.ALLEY_SCREEN_WIDTH / consts.LANE_WIDTH
+        )
+        # Draw the alley
+        pygame.draw.rect(
+            self.screen,
+            consts.BUTCHER_BLOCK,
+            pygame.Rect(
+                (0, right_boundary_y),
+                (
+                    consts.ALLEY_SCREEN_LENGTH,
+                    consts.ALLEY_SCREEN_WIDTH + gutter_screen_width,
+                ),
+            ),
+        )
+        # Draw the left gutter
+        pygame.draw.rect(
+            self.screen,
+            consts.BLACK,
+            pygame.Rect(
+                (0, left_gutter_y),
+                (consts.ALLEY_SCREEN_LENGTH, gutter_screen_width),
+            ),
+        )
+        # Draw the right gutter
+        pygame.draw.rect(
+            self.screen,
+            consts.BLACK,
+            pygame.Rect(
+                (0, right_gutter_y),
+                (consts.ALLEY_SCREEN_LENGTH, gutter_screen_width),
+            ),
+        )
+
+    def display_hud(self) -> None:
+        """Displays the HUD elements of the bowling game (controls, scores, etc.) on the screen."""
+        main_font = pygame.font.Font(None, 56)
+        assets_dir = Path(__file__).parent.parent / "assets"
+        # Rotate/move key (S)
+        s_key_img = pygame.transform.rotate(
+            pygame.image.load(assets_dir / "icons8-s-key-100.png"),
+            90,
+        )
+        self.screen.blit(s_key_img, (10, consts.SCREEN_HEIGHT - 105))
+        rotate_move_text = pygame.transform.rotate(
+            main_font.render(
+                "Rotate"
+                if self.ball_adjustment_mode != BallAdjustmentMode.ROTATION
+                else "Move",
+                True,
+                (0, 0, 0),
+            ),
+            90,
+        )
+        self.screen.blit(rotate_move_text, (40, consts.SCREEN_HEIGHT - 227.5))
+        # Throw key (Space)
+        space_key_img = pygame.transform.rotate(
+            pygame.image.load(assets_dir / "icons8-space-key-100.png"),
+            90,
+        )
+        self.screen.blit(space_key_img, (95, consts.SCREEN_HEIGHT - 115))
+        throw_text = pygame.transform.rotate(
+            main_font.render("Throw", True, (0, 0, 0)),
+            90,
+        )
+        self.screen.blit(throw_text, (130, consts.SCREEN_HEIGHT - 245))
+        # Arduino connect key (C)
+        c_key_img = pygame.transform.rotate(
+            pygame.image.load(assets_dir / "icons8-c-key-100.png"),
+            90,
+        )
+        self.screen.blit(c_key_img, (180, consts.SCREEN_HEIGHT - 105))
+        connect_to_text = pygame.transform.rotate(
+            main_font.render("Connect to", True, (0, 0, 0)),
+            90,
+        )
+        self.screen.blit(connect_to_text, (195, consts.SCREEN_HEIGHT - 305))
+        arduino_text = pygame.transform.rotate(
+            main_font.render("Arduino", True, (0, 0, 0)),
+            90,
+        )
+        self.screen.blit(arduino_text, (230, consts.SCREEN_HEIGHT - 255))
 
     def display_ball(self) -> None:
         """Displays the ball on the screen, at a position relative to its coordinates in the game space."""
@@ -218,50 +283,77 @@ class BowlingGame:
             pygame.key.get_pressed()[pygame.K_SPACE]
             and self.arduino_controller.state == ArduinoState.CONNECTED
         ):
-            self.max_gyroscope_x, self.max_gyroscope_y = (
+            current_gyroscope_x, current_gyroscope_y = (
                 self.arduino_controller.readline()
             )
-        if not pygame.key.get_pressed()[pygame.K_SPACE] and (
-            self.max_gyroscope_x != 0 or self.max_gyroscope_y != 0
+            self.max_gyroscope_x = max(self.max_gyroscope_x, current_gyroscope_x)
+            self.max_gyroscope_y = max(self.max_gyroscope_y, current_gyroscope_y)
+        if (
+            not pygame.key.get_pressed()[pygame.K_SPACE]
+            and (self.max_gyroscope_x != 0 or self.max_gyroscope_y != 0)
+            and self.ball.state == BallState.STATIONARY
         ):
-            # self.ball.throw(self.throw_angle, 317.0)
             self.ball.throw(
                 self.throw_angle,
-                calculate_ball_speed(self.max_gyroscope_x, self.max_gyroscope_y),
+                calculate_ball_speed_from_throw(
+                    self.max_gyroscope_x,
+                    self.max_gyroscope_y,
+                ),
             )
-        print(self.max_gyroscope_x, self.max_gyroscope_y)
+        # print(self.max_gyroscope_x, self.max_gyroscope_y)
 
     def handle_waiting_for_throw_state(self) -> None:
         """Handles logic and pygame rendering when the game is waiting for the user to make a throw."""
-        self.check_for_throw()
+        if self.control_mode == GameControlMode.MOTION:
+            self.check_for_throw()
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
             elif (
                 event.type == pygame.KEYDOWN
-                and not pygame.key.get_pressed()[pygame.K_SPACE]
+                # and not pygame.key.get_pressed()[pygame.K_SPACE]
             ):
-                if event.key == pygame.K_ESCAPE:
-                    self.running = False
-                elif event.key == pygame.K_s:
-                    self.move_mode_active = not self.move_mode_active
-                    print(
-                        f"Ball Adjustment Mode: {'Move' if self.move_mode_active else 'Change Angle'}",
-                    )
-                elif event.key in [pygame.K_LEFT, pygame.K_DOWN]:
-                    if self.move_mode_active:
-                        self.ball.x -= 10
-                        self.calculate_trajectory_line_pos()
-                    else:
-                        self.throw_angle -= 0.5
-                elif event.key in [pygame.K_RIGHT, pygame.K_UP]:
-                    if self.move_mode_active:
-                        self.ball.x += 10
-                        self.calculate_trajectory_line_pos()
-                    else:
-                        self.throw_angle += 0.5
+                self.handle_keydown_before_throw(event)
 
-    def handle_end_of_throw_state(self) -> None:
+    def handle_keydown_before_throw(self, event: pygame.event.Event) -> None:
+        """
+        Handles keypress logic when the game is waiting for the user to make a throw.
+
+        :param event: The pygame Event being handled.
+        """
+        if event.key == pygame.K_ESCAPE:
+            self.running = False
+        elif (
+            event.key == pygame.K_SPACE
+            and self.control_mode == GameControlMode.KEYBOARD
+        ):
+            self.ball.throw(self.throw_angle, 317.0)
+        elif event.key == pygame.K_s:
+            self.ball_adjustment_mode = (
+                BallAdjustmentMode.ROTATION
+                if self.ball_adjustment_mode != BallAdjustmentMode.ROTATION
+                else BallAdjustmentMode.X_POSITION
+            )
+        elif event.key == pygame.K_c and self.control_mode != GameControlMode.MOTION:
+            self.arduino_controller = (
+                ArduinoController()
+            )  # Reinitialise connection to Arduino
+            if self.arduino_controller.state == ArduinoState.CONNECTED:
+                self.control_mode = GameControlMode.KEYBOARD
+        elif event.key in [pygame.K_LEFT, pygame.K_DOWN]:
+            if self.ball_adjustment_mode == BallAdjustmentMode.X_POSITION:
+                self.ball.x -= 10
+                self.calculate_trajectory_line_pos()
+            else:
+                self.throw_angle -= 0.5
+        elif event.key in [pygame.K_RIGHT, pygame.K_UP]:
+            if self.ball_adjustment_mode == BallAdjustmentMode.X_POSITION:
+                self.ball.x += 10
+                self.calculate_trajectory_line_pos()
+            else:
+                self.throw_angle += 0.5
+
+    def handle_end_of_throw(self) -> None:
         """Handles logic and pygame rendering when the current throw has just ended."""
         print(f"Pins hit: {self.pin_set.pins_hit}")
         # If the frame has now finished after this throw
@@ -275,7 +367,7 @@ class BowlingGame:
         self.throw_angle = 0  # Reset throw angle
         self.max_gyroscope_x = self.max_gyroscope_y = 0  # Reset gyroscope measurements
 
-    def handle_end_of_frame_state(self) -> None:
+    def handle_end_of_frame(self) -> None:
         """Handles logic and pygame rendering when the current frame has ended."""
         self.screen.fill(consts.WHITE)
         for event in pygame.event.get():
@@ -311,24 +403,25 @@ class BowlingGame:
                     self.handle_finished_game()
                 # If the game is waiting for the player to throw the ball
                 elif self.frame_state == BowlingFrameState.IN_PROGRESS:
-                    setup_bowling_scene(self.screen)
+                    self.display_bowling_scene()
+                    self.display_hud()
                     if self.ball.state == BallState.FINISHED:
-                        self.handle_end_of_throw_state()
+                        self.handle_end_of_throw()
                     else:
                         if self.ball.state == BallState.STATIONARY:
                             self.handle_waiting_for_throw_state()
                             self.display_trajectory_line()
-                        # Update ball state
                         self.ball.update()
-                        # Display ball and pins
                         self.display_ball()
                         self.display_pins()
                         pygame.display.update()
-                        # Limit FPS to 60, and updates per frame to 1/60
-                        self.clock.tick(consts.FRAMES_PER_SECOND)
-                        self.space.step(1 / consts.FRAMES_PER_SECOND)
+                        self.clock.tick(consts.FRAMES_PER_SECOND)  # Limit FPS to 60
+                        self.space.step(
+                            1 / consts.FRAMES_PER_SECOND,
+                        )  # Limit updates per frame in Pymunk to 1/60
                 # If the current frame has ended
                 elif self.frame_state == BowlingFrameState.ENDED:
-                    self.handle_end_of_frame_state()
+                    self.handle_end_of_frame()
         finally:
-            self.arduino_controller.close()
+            if self.arduino_controller.state != ArduinoState.ERROR:
+                self.arduino_controller.close()
