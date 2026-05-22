@@ -13,8 +13,8 @@ with bowling industry standards. Screen dimensions are in pixels.
 FRAMES_PER_SECOND = 60
 
 # Screen dimensions (pixels)
-SCREEN_WIDTH = 1920 * (3 / 4)  # TODO: Change once final screen size is determined
-SCREEN_HEIGHT = 1080 * (3 / 4)  # TODO: Change once final screen size is determined
+SCREEN_WIDTH = 1920 * (6.125 / 8)  # TODO: Change once final screen size is determined
+SCREEN_HEIGHT = 1080 * (6.125 / 8)  # TODO: Change once final screen size is determined
 
 # Colours (RGB)
 WHITE = (255, 255, 255)
