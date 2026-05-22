@@ -9,9 +9,7 @@ class ScoreKeeper:
     """
 
     def __init__(self) -> None:
-        """
-        Initialises the scorekeeper object.
-        """
+        """Initialises the scorekeeper object."""
         self.raw_score_data: list[int | None] = []
         self.frame_indexes: set[int] = set()
         self.frame_throws: list[list[int]] = []
@@ -19,10 +17,11 @@ class ScoreKeeper:
         self.finished: bool = False
 
     @property
-    def is_last_frame(self):
+    def is_last_frame(self) -> bool:
         """
-        Checks if the current frame will be the last frame of the game by checking if
-        the number of frames is equal to 10 (the standard number of frames in a bowling
+        Checks if the current frame will be the last frame of the game.
+
+        It does this by checking if the number of frames is equal to 10 (the standard number of frames in a bowling
         game).
 
         :return: True if the number of frames is equal to 9, otherwise False.
@@ -50,8 +49,9 @@ class ScoreKeeper:
     @property
     def frame_score_data(self) -> list[list[int]]:
         """
-        Returns the list of frames, by slicing the scores list, by the starting
-        positions of each frame defined in the frame_starts list.
+        Returns the list of frames.
+
+        Slices the scores list by the starting positions of each frame defined in the frame_starts list.
 
         :return: A list containing sublists, with each sublist representing a frame.
         """
@@ -67,19 +67,24 @@ class ScoreKeeper:
     @property
     def frame_totals(self) -> list[int | None]:
         """
-        Calculates the total score for each frame. If a frame contains any None values
-        (indicating that it is incomplete), the corresponding score will also have a
-        value of None. Otherwise, the sum of the frame's scores will be calculated.
+        Calculates the total score for each frame.
+
+        If a frame contains any None values (indicating that it is incomplete), the corresponding score will also have
+        a value of None. Otherwise, the sum of the frame's scores will be calculated.
 
         :return: A list containing the total scores (or None values) for each frame.
         """
-        return [sum([score for score in frame]) if None not in frame else None for frame in self.frame_score_data]
+        return [
+            sum([score for score in frame]) if None not in frame else None
+            for frame in self.frame_score_data
+        ]
 
     def add_throw(self, score: int) -> bool:
         """
-        Add a throw and its score to the current frame. Determines if the throw completes
-        the current frame or if further throws are needed. Handles special cases for strikes,
-        spares, and the final frame.
+        Add a throw and its score to the current frame.
+
+        Determines if the throw completes the current frame or if further throws are needed.
+        Handles special cases for strikes, spares, and the final frame.
 
         :param score: The score of the current throw to be added.
         :return: True if the current frame has been completed, otherwise False.
@@ -93,8 +98,10 @@ class ScoreKeeper:
 
         def check_throw() -> bool:
             """
-            Helper function for add_throw(). Handles special cases (strike/spare/final frame),
-            adds the throw's score to the current frame, and ends the frame when necessary.
+            Helper function for add_throw().
+
+            Handles special cases (strike/spare/final frame), adds the throw's score to the current frame, and ends
+            the frame when necessary.
 
             :return: True if the current frame has been completed, otherwise False.
             """
@@ -106,7 +113,9 @@ class ScoreKeeper:
                     return False  # The final frame has not finished at this point
                 # If the current throw is the 2nd throw in the frame
                 # Either a spare or an open frame
-                non_10_throws = [throw for throw in self.current_frame_throws if throw != 10]
+                non_10_throws = [
+                    throw for throw in self.current_frame_throws if throw != 10
+                ]
                 if len(non_10_throws) == 2:
                     if sum(non_10_throws) == 10:
                         self.end_spare_frame(non_10_throws)
@@ -116,13 +125,17 @@ class ScoreKeeper:
                         return True  # The final frame has now finished
                 # If this throw is the 3rd throw in this frame
                 if len(self.current_frame_throws) == 3:
-                    self.end_open_frame([score])  # Add the score of the last (current) throw to the frame
+                    self.end_open_frame(
+                        [score]
+                    )  # Add the score of the last (current) throw to the frame
                     return True  # The final frame has now finished
             # If this throw is not in the last frame
             elif self.current_frame_throws == [10]:  # If this throw is a strike
                 self.end_strike_frame()
                 return True  # This frame has now ended
-            elif len(self.current_frame_throws) == 2:  # If this throw leaves a spare or open frame
+            elif (
+                len(self.current_frame_throws) == 2
+            ):  # If this throw leaves a spare or open frame
                 if sum(self.current_frame_throws) == 10:  # If this throw leaves a spare
                     self.end_spare_frame(self.current_frame_throws)
                 else:  # If the throw leaves an open frame
@@ -146,8 +159,7 @@ class ScoreKeeper:
 
     def add_throws(self, throws: list[int]) -> bool:
         """
-        Adds a list of throws to their respective frames by running add_throw
-        on each throw.
+        Adds a list of throws to their respective frames by running add_throw on each throw.
 
         :param throws: A list of integers representing the throws to be added.
         :return: True if the last throw completed its frame, otherwise False.
@@ -159,8 +171,10 @@ class ScoreKeeper:
 
     def end_open_frame(self, frame: list[int]) -> None:
         """
-        Ends the provided open frame calculating any uncalculated scores from previous strikes and
-        spares, and saving the frame's scores to the scores list.
+        Ends the provided open frame.
+
+        Calculates any uncalculated scores from previous strikes and spares, and saving the frame's scores to the list
+        of scores.
 
         :param frame: The list of integers representing the scores for each throw in a frame.
         """
@@ -169,9 +183,10 @@ class ScoreKeeper:
 
     def end_spare_frame(self, frame: list[int]) -> None:
         """
-        Ends the provided spare frame, calculating any uncalculated scores from previous strikes and
-        spares, and saving the frame's scores, alongside an extra None value to account for the next
-        throw, to the scores list.
+        Ends the provided spare frame.
+
+        Calculates any uncalculated scores from previous strikes and spares, and saving the frame's scores, alongside
+        an extra None value to account for the next throw, to the list of scores.
 
         :param frame: The list of integers representing the scores for each throw in a frame.
         """
@@ -180,24 +195,28 @@ class ScoreKeeper:
 
     def end_strike_frame(self) -> None:
         """
-        Ends a strike frame, calculating any uncalculated scores from previous strikes and spares, and
-        saving a single 10 score, alongside two extra None values to account for the next
-        two throws, to the scores list.
+        Ends a strike frame.
+
+        Calculates any uncalculated scores from previous strikes and spares, and saving a single 10 score, alongside
+        two extra None values to account for the next two throws, to the scores list.
         """
         self.calc_strikes_and_spares([10])
         self.raw_score_data.extend([10, None, None])
 
     def calc_strikes_and_spares(self, frame: list[int]) -> None:
         """
-        Calculates and updates any uncalculated scores from strikes and spares, using the
-        current frame. If the frame list does not supply enough values, it uses the value
-        of the last non-None score to fill the missing scores.
+        Calculates and updates any uncalculated scores from strikes and spares, using the current frame.
+
+        If the frame list does not supply enough values, it uses the value of the last non-None score to fill the
+        missing scores.
 
         :param frame: The list of integers representing the scores for each throw in a frame.
         """
         frame = frame.copy()
         while None in self.raw_score_data:
-            n_index = len(self.raw_score_data) - 1 - self.raw_score_data[::-1].index(None)
+            n_index = (
+                len(self.raw_score_data) - 1 - self.raw_score_data[::-1].index(None)
+            )
             if frame:
                 self.raw_score_data[n_index] = frame.pop()
             else:
@@ -209,8 +228,9 @@ class ScoreKeeper:
 
     def __str__(self) -> str:
         """
-        Returns a string representation of the object, detailing for each frame,
-        the throws made in it and its current cumulative score.
+        Returns a string representation of the object.
+
+        Details for each frame, the throws made in it and its current cumulative score.
 
         :return: A formatted string displaying the details for each frame.
         """
@@ -224,12 +244,14 @@ class ScoreKeeper:
             else:
                 result += f"Frame {i + 1}:\n{self.frame_throws[i]} Uncalculated, more throws needed to calculate\n"
                 break
-        result += f"\nFinal score: {c_score}" if self.finished else "\nGame not finished"
+        result += (
+            f"\nFinal score: {c_score}" if self.finished else "\nGame not finished"
+        )
         return result
 
 
 # Example game - https://bowlingforbeginners.com/how-is-bowling-scored/
-if __name__ == '__main__':
+if __name__ == "__main__":
     sk = ScoreKeeper()
     sk.add_throws([6, 2])
     sk.add_throws([10])
