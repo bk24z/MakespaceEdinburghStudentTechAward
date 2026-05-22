@@ -327,6 +327,7 @@ class BowlingGame:
             event.key == pygame.K_SPACE
             and self.control_mode == GameControlMode.KEYBOARD
         ):
+            # self.ball.throw(self.throw_angle, 1000)
             self.ball.throw(self.throw_angle, 317.0)
         elif event.key == pygame.K_s:
             self.ball_adjustment_mode = (
@@ -367,16 +368,215 @@ class BowlingGame:
         self.throw_angle = 0  # Reset throw angle
         self.max_gyroscope_x = self.max_gyroscope_y = 0  # Reset gyroscope measurements
 
+    def update_environment(self) -> None:
+        """
+        Updates the environment.
+
+        Refreshes the display, limits the frame rate to 60fps, and updates the simulation space.
+        """
+        pygame.display.update()
+        self.clock.tick(consts.FRAMES_PER_SECOND)
+        self.space.step(1 / consts.FRAMES_PER_SECOND)
+
     def handle_end_of_frame(self) -> None:
         """Handles logic and pygame rendering when the current frame has ended."""
+        # Background
         self.screen.fill(consts.WHITE)
+
+        # Constants
+        line_height = 80
+        # cell_width = 145
+        cell_width = consts.SCREEN_WIDTH / 10
+        font_size = 56
+        font = pygame.font.Font(None, font_size)
+
+        # Vertical borders
+        for i in range(11):
+            pygame.draw.line(
+                self.screen,
+                (0, 0, 0),
+                (
+                    i * cell_width,
+                    (consts.SCREEN_HEIGHT / 2) + line_height,
+                ),
+                (
+                    i * cell_width,
+                    (consts.SCREEN_HEIGHT / 2) - line_height,
+                ),
+                5,
+            )
+
+        # Horizontal borders
+        for offset in [-line_height, -line_height / 3, line_height]:
+            pygame.draw.line(
+                self.screen,
+                (0, 0, 0),
+                (
+                    0,
+                    (consts.SCREEN_HEIGHT / 2) + offset,
+                ),
+                (
+                    10 * cell_width,
+                    (consts.SCREEN_HEIGHT / 2) + offset,
+                ),
+                5,
+            )
+
+        # Individual frame elements up to 9th frame
+        for i in range(9):
+            frame_display_num = i + 1
+
+            # Frame number
+            self.screen.blit(
+                font.render(str(frame_display_num), True, (0, 0, 0)),
+                (
+                    (i + 0.5) * cell_width - (font.size(str(frame_display_num))[0] / 2),
+                    (consts.SCREEN_HEIGHT / 2) - line_height + 7.5,
+                ),
+            )
+
+            # Small box in top right corner
+            pygame.draw.line(  # Vertical line
+                self.screen,
+                (0, 0, 0),
+                (
+                    (i + 0.5) * cell_width,
+                    (consts.SCREEN_HEIGHT / 2) - line_height / 3,
+                ),
+                (
+                    (i + 0.5) * cell_width,
+                    (consts.SCREEN_HEIGHT / 2) + line_height * (1 / 3),
+                ),
+                5,
+            )
+            pygame.draw.line(  # Horizontal line
+                self.screen,
+                (0, 0, 0),
+                (
+                    (i + 0.5) * cell_width,
+                    (consts.SCREEN_HEIGHT / 2) + line_height * (1 / 3),
+                ),
+                (
+                    (i + 1) * cell_width,
+                    (consts.SCREEN_HEIGHT / 2) + line_height * (1 / 3),
+                ),
+                5,
+            )
+
+        # 10th frame number
+        self.screen.blit(
+            font.render("10", True, (0, 0, 0)),
+            (
+                9.5 * cell_width - (font.size("10")[0] / 2),
+                (consts.SCREEN_HEIGHT / 2) - line_height + 7.5,
+            ),
+        )
+
+        # Extra vertical lines for 10th frame's small box
+        for i in range(1, 3):
+            pygame.draw.line(
+                self.screen,
+                (0, 0, 0),
+                (
+                    (9 + (i / 3)) * cell_width,
+                    (consts.SCREEN_HEIGHT / 2) - line_height / 3,
+                ),
+                (
+                    (9 + (i / 3)) * cell_width,
+                    (consts.SCREEN_HEIGHT / 2) + line_height * (1 / 3),
+                ),
+                5,
+            )
+
+        # Horizontal line for 10th frame's small box
+        pygame.draw.line(
+            self.screen,
+            (0, 0, 0),
+            (
+                (9 + (1 / 3)) * cell_width,
+                (consts.SCREEN_HEIGHT / 2) + line_height * (1 / 3),
+            ),
+            (
+                10 * cell_width,
+                (consts.SCREEN_HEIGHT / 2) + line_height * (1 / 3),
+            ),
+            5,
+        )
+
+        # Throws and current score for each frame
+        c_score = 0
+        for i, frame in enumerate(self.score_keeper.frame_score_data):
+            if None not in frame:
+                # TODO: Maybe optimise current score calculation to be more efficient
+                c_score += sum([score for score in frame if score is not None])
+                throws = self.score_keeper.frame_throws[i]
+                try:
+                    if throws[0] == 10:
+                        throw_1_text = "X" if len(throws) == 3 else ""
+                        throw_2_text = (
+                            "X" if (len(throws) != 3 or throws[1] == 10) else ""
+                        )
+                    else:
+                        throw_1_text = str(throws[0])
+                        throw_2_text = str(throws[1]) if sum(throws[:2]) < 10 else "/"
+                except IndexError:
+                    throw_2_text = ""
+                try:
+                    if throws[2] == 10:
+                        throw_3_text = "X"
+                    else:
+                        throw_3_text = str(
+                            throws[2]
+                            if (sum(throws[1:3]) < 10 or throws[1] == 10)
+                            else "/",
+                        )
+                except IndexError:
+                    throw_3_text = ""
+
+                # First throw
+                self.screen.blit(
+                    font.render(throw_1_text, True, (0, 0, 0)),
+                    (
+                        (i + (0.25 if throw_3_text == "" else 1 / 6)) * cell_width
+                        - (font.size(throw_1_text)[0] / 2),
+                        (consts.SCREEN_HEIGHT / 2) - line_height * (1 / 6),
+                    ),
+                )
+                # Second throw
+                self.screen.blit(
+                    font.render(throw_2_text, True, (0, 0, 0)),
+                    (
+                        (i + (0.75 if throw_3_text == "" else 0.5)) * cell_width
+                        - (font.size(throw_2_text)[0] / 2),
+                        (consts.SCREEN_HEIGHT / 2) - line_height * (1 / 6),
+                    ),
+                )
+                # Third throw
+                self.screen.blit(
+                    font.render(throw_3_text, True, (0, 0, 0)),
+                    (
+                        (i + 5 / 6) * cell_width - (font.size(throw_3_text)[0] / 2),
+                        (consts.SCREEN_HEIGHT / 2) - line_height * (1 / 6),
+                    ),
+                )
+                # Current score after this frame
+                self.screen.blit(
+                    font.render(str(c_score), True, (0, 0, 0)),
+                    (
+                        (i + 0.5) * cell_width - (font.size(str(c_score))[0] / 2),
+                        (consts.SCREEN_HEIGHT / 2) + line_height * (1 / 2),
+                    ),
+                )
+
+        # Event handling
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
                 self.frame_state = BowlingFrameState.IN_PROGRESS
-        pygame.display.update()
-        self.space.step(1 / consts.FRAMES_PER_SECOND)
+
+        # Updating environment
+        self.update_environment()
 
     def handle_finished_game(self) -> None:
         """Handles logic and pygame rendering when the bowling game has finished."""
@@ -387,6 +587,7 @@ class BowlingGame:
             ):
                 self.running = False
         pygame.display.update()
+        self.clock.tick(consts.FRAMES_PER_SECOND)  # Limit FPS to 60
         self.space.step(1 / consts.FRAMES_PER_SECOND)
 
     def run(self) -> None:
@@ -397,7 +598,9 @@ class BowlingGame:
         accordingly while the game is running. Also limits the game to run at 60fps.
         """
         try:
+            # self.score_keeper.test_setup()
             while self.running:
+                # self.handle_end_of_frame()
                 # If the game is finished
                 if self.score_keeper.finished:
                     self.handle_finished_game()
@@ -414,11 +617,7 @@ class BowlingGame:
                         self.ball.update()
                         self.display_ball()
                         self.display_pins()
-                        pygame.display.update()
-                        self.clock.tick(consts.FRAMES_PER_SECOND)  # Limit FPS to 60
-                        self.space.step(
-                            1 / consts.FRAMES_PER_SECOND,
-                        )  # Limit updates per frame in Pymunk to 1/60
+                        self.update_environment()
                 # If the current frame has ended
                 elif self.frame_state == BowlingFrameState.ENDED:
                     self.handle_end_of_frame()
