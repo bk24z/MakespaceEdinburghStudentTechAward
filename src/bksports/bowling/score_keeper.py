@@ -75,8 +75,7 @@ class ScoreKeeper:
         :return: A list containing the total scores (or None values) for each frame.
         """
         return [
-            sum([score for score in frame]) if None not in frame else None
-            for frame in self.frame_score_data
+            sum(frame) if None not in frame else None for frame in self.frame_score_data
         ]
 
     def add_throw(self, score: int) -> bool:
@@ -249,22 +248,25 @@ class ScoreKeeper:
         )
         return result
 
+    def test_setup(self) -> None:
+        self.add_throws([6, 2])
+        self.add_throws([10])
+        self.add_throws([3, 2])
+        self.add_throws([5, 5])
+        self.add_throws([10])
+        self.add_throws([10])
+        self.add_throws([1, 4])
+        self.add_throws([9, 0])
+        self.add_throws([3, 2])
+        print(self.add_throws([10, 10, 1]))
+        print(self.raw_score_data, self.total_score)
+        print(self.frame_indexes)
+        print(self.frame_score_data)
+        print(self.frame_throws)
+        print(self)
+
 
 # Example game - https://bowlingforbeginners.com/how-is-bowling-scored/
 if __name__ == "__main__":
     sk = ScoreKeeper()
-    sk.add_throws([6, 2])
-    sk.add_throws([10])
-    sk.add_throws([3, 2])
-    sk.add_throws([5, 5])
-    sk.add_throws([10])
-    sk.add_throws([10])
-    sk.add_throws([1, 4])
-    sk.add_throws([9, 0])
-    sk.add_throws([3, 2])
-    print(sk.add_throws([10, 10, 1]))
-    print(sk.raw_score_data, sk.total_score)
-    print(sk.frame_indexes)
-    print(sk.frame_score_data)
-    print(sk.frame_throws)
-    print(sk)
+    sk.test_setup()
