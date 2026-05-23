@@ -352,16 +352,18 @@ class BowlingGame:
 
     def handle_end_of_throw(self) -> None:
         """Handles logic and pygame rendering when the current throw has just ended."""
-        # print(f"Pins hit: {self.pin_set.pins_hit}")
-        # If the frame has now finished after this throw
-        if self.score_keeper.add_throw(self.pin_set.pins_hit):
+        if self.score_keeper.add_throw(
+            self.pin_set.pins_hit,
+        ):  # If the frame has now finished after this throw
+            self.pin_set.remove_from_space()
             self.pin_set = PinSet(self.space)  # Reset pins
-            print(self.score_keeper)  # Show current game state
+            print(self.score_keeper)
             self.frame_state = BowlingFrameState.ENDED
         else:
             self.pin_set.clean_up()  # Remove knocked pins
+        self.space.remove(self.ball.body, self.ball.shape)  # Remove ball from space
         self.ball = Ball(self.space)  # Reset ball
-        self.throw_angle = 0  # Reset throw angle
+        self.throw_angle = 0
         self.max_gyroscope_x = self.max_gyroscope_y = 0  # Reset gyroscope measurements
         pygame.event.clear()
 
@@ -517,7 +519,6 @@ class BowlingGame:
         c_score = 0
         for i, frame in enumerate(self.score_keeper.frame_score_data):
             if None not in frame:
-                # TODO: Maybe optimise current score calculation to be more efficient
                 c_score += sum([score for score in frame if score is not None])
                 throws = self.score_keeper.frame_throws[i]
                 try:
