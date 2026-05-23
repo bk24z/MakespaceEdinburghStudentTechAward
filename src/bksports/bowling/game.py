@@ -134,9 +134,9 @@ class BowlingGame:
         # print(self.throw_angle)
         # print(self.trajectory_line.angle)
 
-    def display_bowling_scene(self) -> None:
+    def draw_bowling_alley(self) -> None:
         """
-        Sets up the bowling scene.
+        Draws the bowling alley scene on the screen.
 
         Renders the background, alley, and gutters on the provided screen.
 
@@ -185,8 +185,8 @@ class BowlingGame:
             ),
         )
 
-    def display_hud(self) -> None:
-        """Displays the HUD elements of the bowling game (controls, scores, etc.) on the screen."""
+    def draw_hud(self) -> None:
+        """Draws the HUD elements of the bowling game (controls, scores, etc.) on the screen."""
         main_font = pygame.font.Font(None, 56)
         assets_dir = Path(__file__).parent.parent / "assets"
         # Rotate/move key (S)
@@ -234,8 +234,8 @@ class BowlingGame:
         )
         self.screen.blit(arduino_text, (230, consts.SCREEN_HEIGHT - 255))
 
-    def display_ball(self) -> None:
-        """Displays the ball on the screen, at a position relative to its coordinates in the game space."""
+    def draw_ball(self) -> None:
+        """Draws the ball on the screen, at a position relative to its coordinates in the game space."""
         # print(f"Ball game pos: ({self.ball.x}, {self.ball.y})")
         x, y = convert_game_to_screen_pos(self.ball.x, self.ball.y)
         # print(f"Ball screen pos: ({self.x}, {self.y})")
@@ -247,8 +247,8 @@ class BowlingGame:
             BALL_SCREEN_RADIUS,
         )
 
-    def display_pins(self) -> None:
-        """Displays the pins on the screen, at positions relative to their coordinates in the game space."""
+    def draw_pins(self) -> None:
+        """Draws the pins on the screen, at positions relative to their coordinates in the game space."""
         for pin in self.pin_set.pins:
             if pin.removed:
                 continue
@@ -268,8 +268,8 @@ class BowlingGame:
         # print(f"Angle: {self.__angle}, end_y (game): {end_y}, end_pos (screen): {self.end_pos}")
         # return start_pos, end_pos
 
-    def display_trajectory_line(self) -> None:
-        """Displays the trajectory line on the screen, at its calcuated start and end positions."""
+    def draw_trajectory_line(self) -> None:
+        """Draws the trajectory line on the screen, at its calcuated start and end positions."""
         pygame.draw.line(
             self.screen,
             (255, 0, 0),
@@ -379,16 +379,19 @@ class BowlingGame:
         self.clock.tick(consts.FRAMES_PER_SECOND)
         self.space.step(1 / consts.FRAMES_PER_SECOND)
 
-    def handle_end_of_frame(self) -> None:
-        """Handles logic and pygame rendering when the current frame has ended."""
-        # Background
-        self.screen.fill(consts.WHITE)
+    def draw_scoreboard_grid(
+        self,
+        grid_height: int,
+        cell_width: int,
+        font: pygame.font.Font,
+    ) -> None:
+        """
+        Draws the scoreboard grid (borders and frame numbers) on the screen.
 
-        # Constants
-        grid_height = 80
-        cell_width = consts.SCREEN_WIDTH / 10
-        font = pygame.font.Font(None, 56)
-
+        :param grid_height: The height of the scoreboard grid.
+        :param cell_width: The width of each cell in the scoreboard grid.
+        :param font: The font used to render score text on the scoreboard.
+        """
         # Vertical borders
         for i in range(11):
             pygame.draw.line(
@@ -502,7 +505,19 @@ class BowlingGame:
             5,
         )
 
-        # Throws and current score for each frame
+    def draw_scoreboard_scores(
+        self,
+        grid_height: int,
+        cell_width: int,
+        font: pygame.font.Font,
+    ) -> None:
+        """
+        Draws the scores onto the scoreboard, including throws and current score for each frame, on the screen.
+
+        :param grid_height: The height of the scoreboard grid.
+        :param cell_width: The width of each cell in the scoreboard grid.
+        :param font: The font used to render score text on the scoreboard.
+        """
         c_score = 0
         for i, frame in enumerate(self.score_keeper.frame_score_data):
             if None not in frame:
@@ -567,27 +582,39 @@ class BowlingGame:
                     ),
                 )
 
-        # Event handling
+    def draw_scoreboard(self) -> None:
+        """
+        Draws the scoreboard on the screen.
+
+        Defines the required constants, fills the screen with a white background, and draws each element using helper
+        methods.
+        """
+        grid_height = 80
+        cell_width = consts.SCREEN_WIDTH / 10
+        font = pygame.font.Font(None, 56)
+        self.screen.fill(consts.WHITE)
+        self.draw_scoreboard_grid(grid_height, cell_width, font)
+        self.draw_scoreboard_scores(grid_height, cell_width, font)
+
+    def handle_end_of_frame(self) -> None:
+        """Handles logic and pygame rendering when the current frame has ended."""
+        self.draw_scoreboard()
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
                 self.frame_state = BowlingFrameState.IN_PROGRESS
-
-        # Updating environment
         self.update_environment()
 
     def handle_finished_game(self) -> None:
         """Handles logic and pygame rendering when the bowling game has finished."""
-        self.screen.fill(consts.BLACK)
+        self.draw_scoreboard()
         for event in pygame.event.get():
             if event.type == pygame.QUIT or (
                 event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE
             ):
                 self.running = False
-        pygame.display.update()
-        self.clock.tick(consts.FRAMES_PER_SECOND)  # Limit FPS to 60
-        self.space.step(1 / consts.FRAMES_PER_SECOND)
+        self.update_environment()
 
     def run(self) -> None:
         """
@@ -605,17 +632,17 @@ class BowlingGame:
                     self.handle_finished_game()
                 # If the game is waiting for the player to throw the ball
                 elif self.frame_state == BowlingFrameState.IN_PROGRESS:
-                    self.display_bowling_scene()
-                    self.display_hud()
+                    self.draw_bowling_alley()
+                    self.draw_hud()
                     if self.ball.state == BallState.FINISHED:
                         self.handle_end_of_throw()
                     else:
                         if self.ball.state == BallState.STATIONARY:
                             self.handle_waiting_for_throw_state()
-                            self.display_trajectory_line()
+                            self.draw_trajectory_line()
                         self.ball.update()
-                        self.display_ball()
-                        self.display_pins()
+                        self.draw_ball()
+                        self.draw_pins()
                         self.update_environment()
                 # If the current frame has ended
                 elif self.frame_state == BowlingFrameState.ENDED:
