@@ -135,13 +135,7 @@ class BowlingGame:
         # print(self.trajectory_line.angle)
 
     def draw_bowling_alley(self) -> None:
-        """
-        Draws the bowling alley scene on the screen.
-
-        Renders the background, alley, and gutters on the provided screen.
-
-        :param screen: The screen surface where the bowling scene will be drawn.
-        """
+        """Draws the bowling alley scene on the screen (background, alley, gutters)."""
         # Fill the screen with a white background
         self.screen.fill(consts.WHITE)
         # Calculate the alley and gutter dimensions
@@ -237,9 +231,9 @@ class BowlingGame:
     def draw_ball(self) -> None:
         """Draws the ball on the screen, at a position relative to its coordinates in the game space."""
         # print(f"Ball game pos: ({self.ball.x}, {self.ball.y})")
-        x, y = convert_game_to_screen_pos(self.ball.x, self.ball.y)
         # print(f"Ball screen pos: ({self.x}, {self.y})")
         # screen.blit(self.img, (self.x, self.y))
+        x, y = convert_game_to_screen_pos(self.ball.x, self.ball.y)
         pygame.draw.circle(
             self.screen,
             consts.LIGHT_BLUE,
@@ -327,6 +321,7 @@ class BowlingGame:
         elif (
             event.key == pygame.K_SPACE
             and self.control_mode == GameControlMode.KEYBOARD
+            and self.ball.state == BallState.STATIONARY
         ):
             # self.ball.throw(self.throw_angle, 1000)
             self.ball.throw(self.throw_angle, 317.0)
@@ -357,17 +352,18 @@ class BowlingGame:
 
     def handle_end_of_throw(self) -> None:
         """Handles logic and pygame rendering when the current throw has just ended."""
-        print(f"Pins hit: {self.pin_set.pins_hit}")
+        # print(f"Pins hit: {self.pin_set.pins_hit}")
         # If the frame has now finished after this throw
         if self.score_keeper.add_throw(self.pin_set.pins_hit):
             self.pin_set = PinSet(self.space)  # Reset pins
-            print(self.score_keeper)  # Show current game state TODO: Display on screen
+            print(self.score_keeper)  # Show current game state
             self.frame_state = BowlingFrameState.ENDED
         else:
             self.pin_set.clean_up()  # Remove knocked pins
         self.ball = Ball(self.space)  # Reset ball
         self.throw_angle = 0  # Reset throw angle
         self.max_gyroscope_x = self.max_gyroscope_y = 0  # Reset gyroscope measurements
+        pygame.event.clear()
 
     def update_environment(self) -> None:
         """
@@ -598,12 +594,35 @@ class BowlingGame:
 
     def handle_end_of_frame(self) -> None:
         """Handles logic and pygame rendering when the current frame has ended."""
+        # Constants
+        font = pygame.font.Font(None, 56)
+        assets_dir = Path(__file__).parent.parent / "assets"
+        # Scoreboard
         self.draw_scoreboard()
+        # Continue (Space) key prompt
+        space_key_img = pygame.image.load(assets_dir / "icons8-space-key-100.png")
+        self.screen.blit(
+            space_key_img,
+            (
+                (consts.SCREEN_WIDTH - font.size("Continue")[0]) / 2 - 60,
+                consts.SCREEN_HEIGHT - 280,
+            ),
+        )
+        continue_text = font.render("Continue", True, (0, 0, 0))
+        self.screen.blit(
+            continue_text,
+            (
+                (consts.SCREEN_WIDTH - font.size("Continue")[0]) / 2 + 60,
+                consts.SCREEN_HEIGHT - 250,
+            ),
+        )
+        # Event handling
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
-            elif event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
+            elif event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
                 self.frame_state = BowlingFrameState.IN_PROGRESS
+        # Updating environment
         self.update_environment()
 
     def handle_finished_game(self) -> None:
