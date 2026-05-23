@@ -39,7 +39,8 @@ class GameControlMode(Enum):
 
 
 def calculate_ball_speed_from_throw(
-    max_gyroscope_x: float, max_gyroscope_y: float
+    max_gyroscope_x: float,
+    max_gyroscope_y: float,
 ) -> float:
     """
     Calculates the speed of a ball based on gyroscopic measurements from the Arduino.
@@ -384,11 +385,9 @@ class BowlingGame:
         self.screen.fill(consts.WHITE)
 
         # Constants
-        line_height = 80
-        # cell_width = 145
+        grid_height = 80
         cell_width = consts.SCREEN_WIDTH / 10
-        font_size = 56
-        font = pygame.font.Font(None, font_size)
+        font = pygame.font.Font(None, 56)
 
         # Vertical borders
         for i in range(11):
@@ -397,17 +396,17 @@ class BowlingGame:
                 (0, 0, 0),
                 (
                     i * cell_width,
-                    (consts.SCREEN_HEIGHT / 2) + line_height,
+                    (consts.SCREEN_HEIGHT / 2) + grid_height,
                 ),
                 (
                     i * cell_width,
-                    (consts.SCREEN_HEIGHT / 2) - line_height,
+                    (consts.SCREEN_HEIGHT / 2) - grid_height,
                 ),
                 5,
             )
 
         # Horizontal borders
-        for offset in [-line_height, -line_height / 3, line_height]:
+        for offset in [-grid_height, -grid_height / 3, grid_height]:
             pygame.draw.line(
                 self.screen,
                 (0, 0, 0),
@@ -431,7 +430,7 @@ class BowlingGame:
                 font.render(str(frame_display_num), True, (0, 0, 0)),
                 (
                     (i + 0.5) * cell_width - (font.size(str(frame_display_num))[0] / 2),
-                    (consts.SCREEN_HEIGHT / 2) - line_height + 7.5,
+                    (consts.SCREEN_HEIGHT / 2) - grid_height + 7.5,
                 ),
             )
 
@@ -441,11 +440,11 @@ class BowlingGame:
                 (0, 0, 0),
                 (
                     (i + 0.5) * cell_width,
-                    (consts.SCREEN_HEIGHT / 2) - line_height / 3,
+                    (consts.SCREEN_HEIGHT / 2) - grid_height / 3,
                 ),
                 (
                     (i + 0.5) * cell_width,
-                    (consts.SCREEN_HEIGHT / 2) + line_height * (1 / 3),
+                    (consts.SCREEN_HEIGHT / 2) + grid_height * (1 / 3),
                 ),
                 5,
             )
@@ -454,11 +453,11 @@ class BowlingGame:
                 (0, 0, 0),
                 (
                     (i + 0.5) * cell_width,
-                    (consts.SCREEN_HEIGHT / 2) + line_height * (1 / 3),
+                    (consts.SCREEN_HEIGHT / 2) + grid_height * (1 / 3),
                 ),
                 (
                     (i + 1) * cell_width,
-                    (consts.SCREEN_HEIGHT / 2) + line_height * (1 / 3),
+                    (consts.SCREEN_HEIGHT / 2) + grid_height * (1 / 3),
                 ),
                 5,
             )
@@ -468,7 +467,7 @@ class BowlingGame:
             font.render("10", True, (0, 0, 0)),
             (
                 9.5 * cell_width - (font.size("10")[0] / 2),
-                (consts.SCREEN_HEIGHT / 2) - line_height + 7.5,
+                (consts.SCREEN_HEIGHT / 2) - grid_height + 7.5,
             ),
         )
 
@@ -479,11 +478,11 @@ class BowlingGame:
                 (0, 0, 0),
                 (
                     (9 + (i / 3)) * cell_width,
-                    (consts.SCREEN_HEIGHT / 2) - line_height / 3,
+                    (consts.SCREEN_HEIGHT / 2) - grid_height / 3,
                 ),
                 (
                     (9 + (i / 3)) * cell_width,
-                    (consts.SCREEN_HEIGHT / 2) + line_height * (1 / 3),
+                    (consts.SCREEN_HEIGHT / 2) + grid_height * (1 / 3),
                 ),
                 5,
             )
@@ -494,11 +493,11 @@ class BowlingGame:
             (0, 0, 0),
             (
                 (9 + (1 / 3)) * cell_width,
-                (consts.SCREEN_HEIGHT / 2) + line_height * (1 / 3),
+                (consts.SCREEN_HEIGHT / 2) + grid_height * (1 / 3),
             ),
             (
                 10 * cell_width,
-                (consts.SCREEN_HEIGHT / 2) + line_height * (1 / 3),
+                (consts.SCREEN_HEIGHT / 2) + grid_height * (1 / 3),
             ),
             5,
         )
@@ -539,7 +538,7 @@ class BowlingGame:
                     (
                         (i + (0.25 if throw_3_text == "" else 1 / 6)) * cell_width
                         - (font.size(throw_1_text)[0] / 2),
-                        (consts.SCREEN_HEIGHT / 2) - line_height * (1 / 6),
+                        (consts.SCREEN_HEIGHT / 2) - grid_height * (1 / 6),
                     ),
                 )
                 # Second throw
@@ -548,7 +547,7 @@ class BowlingGame:
                     (
                         (i + (0.75 if throw_3_text == "" else 0.5)) * cell_width
                         - (font.size(throw_2_text)[0] / 2),
-                        (consts.SCREEN_HEIGHT / 2) - line_height * (1 / 6),
+                        (consts.SCREEN_HEIGHT / 2) - grid_height * (1 / 6),
                     ),
                 )
                 # Third throw
@@ -556,7 +555,7 @@ class BowlingGame:
                     font.render(throw_3_text, True, (0, 0, 0)),
                     (
                         (i + 5 / 6) * cell_width - (font.size(throw_3_text)[0] / 2),
-                        (consts.SCREEN_HEIGHT / 2) - line_height * (1 / 6),
+                        (consts.SCREEN_HEIGHT / 2) - grid_height * (1 / 6),
                     ),
                 )
                 # Current score after this frame
@@ -564,7 +563,7 @@ class BowlingGame:
                     font.render(str(c_score), True, (0, 0, 0)),
                     (
                         (i + 0.5) * cell_width - (font.size(str(c_score))[0] / 2),
-                        (consts.SCREEN_HEIGHT / 2) + line_height * (1 / 2),
+                        (consts.SCREEN_HEIGHT / 2) + grid_height * (1 / 2),
                     ),
                 )
 
