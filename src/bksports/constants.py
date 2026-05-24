@@ -13,8 +13,13 @@ with bowling industry standards. Screen dimensions are in pixels.
 FRAMES_PER_SECOND = 60
 
 # Screen dimensions (pixels)
-SCREEN_WIDTH = 1920 * (6.125 / 8)  # TODO: Change once final screen size is determined
-SCREEN_HEIGHT = 1080 * (6.125 / 8)  # TODO: Change once final screen size is determined
+# SCREEN_WIDTH = 1080 * (6.125 / 8)
+SCREEN_WIDTH = (
+    1920  # * (6.125 / 8)  # TODO: Change once final screen size is determined
+)
+SCREEN_HEIGHT = (
+    1080  # * (6.125 / 8)  # TODO: Change once final screen size is determined
+)
 
 # Colours (RGB)
 WHITE = (255, 255, 255)
@@ -33,32 +38,27 @@ BUTCHER_BLOCK = (190, 172, 76)  # Bowling lane colour
 # and are based on USBC (United States Bowling Congress) specifications
 
 # Lane dimensions
-LANE_WIDTH = 41.5
+LANE_WIDTH = 41.5 + 7.5
 GUTTER_WIDTH = 9.25
 ALLEY_WIDTH = LANE_WIDTH + GUTTER_WIDTH * 2  # Total width of the alley
 LANE_LENGTH = (
-    65 * 12
-)  # Distance from foul line to end of lane (65 feet?) TODO: Needs to be checked
+    62 * 12 + 10 + 3 / 16
+)  # Distance from foul line to end of lane (62 feet 10 3/16ths inches)
 APPROACH_LENGTH = (
     15 * 12
 )  # Distance of approach, start of lane to foul lane (15 feet) TODO: Needs to be checked
+FOUL_LINE_TO_FRONT_PIN_DISTANCE = (
+    60 * 12
+)  # Distance from the foul line to the first pin at the front (60 feet) TODO: Needs to be checked
+# FOUL_LINE_TO_END_DISTANCE = None  # Distance from the foul line to the end of the lane (? feet, not needed rn) TODO: Find correct value and change this
 
 # Lane boundaries (x-coordinates from the centre of alley)
 LEFT_BOUNDARY = -(LANE_WIDTH / 2)
 RIGHT_BOUNDARY = LANE_WIDTH / 2
 
 # Pin positioning
-FOUL_LINE_TO_FRONT_PIN_DISTANCE = (
-    60 * 12
-)  # Distance from the foul line to the first pin at the front (60 feet) TODO: Needs to be checked
-FOUL_LINE_TO_END_DISTANCE = None  # Distance from the foul line to the end of the lane (? feet) TODO: Find correct value and change this
-PIN_SPACING_H = 12  # Centre to centre distance
-HALF_PIN_SPACING_H = (
-    PIN_SPACING_H / 2
-)  # TODO: Change back to PIN_SPACING_H after testing
-PIN_SPACING_V = (
-    20.75 / 2
-)  # Spacing between rows of pins TODO: Change back to 20.75 after testing
+PIN_SPACING_H = 12 / 2  # Centre to centre distance
+PIN_SPACING_V = 20.75 / 2  # Spacing between rows of pins
 
 # Alley screen dimensions (pixels)
 ALLEY_SCREEN_LENGTH = SCREEN_WIDTH
