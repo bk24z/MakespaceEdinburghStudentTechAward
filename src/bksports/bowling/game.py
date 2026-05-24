@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pygame
 import pymunk
+import pymunk.pygame_util
 
 import bksports.constants as consts
 from bksports.bowling.arduino import ArduinoController, ArduinoState
@@ -135,7 +136,7 @@ class BowlingGame:
         # print(self.trajectory_line.angle)
 
     def draw_bowling_alley(self) -> None:
-        """Draws the bowling alley scene on the screen (background, alley, gutters)."""
+        """Draws the bowling alley scene (background, alley, gutters) on the screen."""
         # Fill the screen with a white background
         self.screen.fill(consts.WHITE)
         # Calculate the alley and gutter dimensions
@@ -181,7 +182,7 @@ class BowlingGame:
 
     def draw_hud(self) -> None:
         """Draws the HUD elements of the bowling game (controls, scores, etc.) on the screen."""
-        main_font = pygame.font.Font(None, 56)
+        font = pygame.font.Font(None, 56)
         assets_dir = Path(__file__).parent.parent / "assets"
         # Rotate/move key (S)
         s_key_img = pygame.transform.rotate(
@@ -190,7 +191,7 @@ class BowlingGame:
         )
         self.screen.blit(s_key_img, (10, consts.SCREEN_HEIGHT - 105))
         rotate_move_text = pygame.transform.rotate(
-            main_font.render(
+            font.render(
                 "Rotate"
                 if self.ball_adjustment_mode != BallAdjustmentMode.ROTATION
                 else "Move",
@@ -207,7 +208,7 @@ class BowlingGame:
         )
         self.screen.blit(space_key_img, (95, consts.SCREEN_HEIGHT - 115))
         throw_text = pygame.transform.rotate(
-            main_font.render("Throw", True, (0, 0, 0)),
+            font.render("Throw", True, (0, 0, 0)),
             90,
         )
         self.screen.blit(throw_text, (130, consts.SCREEN_HEIGHT - 245))
@@ -218,12 +219,12 @@ class BowlingGame:
         )
         self.screen.blit(c_key_img, (180, consts.SCREEN_HEIGHT - 105))
         connect_to_text = pygame.transform.rotate(
-            main_font.render("Connect to", True, (0, 0, 0)),
+            font.render("Connect to", True, (0, 0, 0)),
             90,
         )
         self.screen.blit(connect_to_text, (195, consts.SCREEN_HEIGHT - 305))
         arduino_text = pygame.transform.rotate(
-            main_font.render("Arduino", True, (0, 0, 0)),
+            font.render("Arduino", True, (0, 0, 0)),
             90,
         )
         self.screen.blit(arduino_text, (230, consts.SCREEN_HEIGHT - 255))
@@ -247,6 +248,7 @@ class BowlingGame:
             if pin.removed:
                 continue
             x, y = convert_game_to_screen_pos(pin.x, pin.y)
+            # print(x, y)
             color = consts.RED if pin.hit else consts.BLACK
             pygame.draw.circle(self.screen, color, (x, y), PIN_SCREEN_RADIUS)
 
@@ -323,7 +325,7 @@ class BowlingGame:
             and self.control_mode == GameControlMode.KEYBOARD
             and self.ball.state == BallState.STATIONARY
         ):
-            # self.ball.throw(self.throw_angle, 1000)
+            # self.ball.throw(self.throw_angle, 400)
             self.ball.throw(self.throw_angle, 317.0)
         elif event.key == pygame.K_s:
             self.ball_adjustment_mode = (
@@ -336,31 +338,31 @@ class BowlingGame:
                 ArduinoController()
             )  # Reinitialise connection to Arduino
             if self.arduino_controller.state == ArduinoState.CONNECTED:
-                self.control_mode = GameControlMode.KEYBOARD
+                self.control_mode = GameControlMode.MOTION
         elif event.key in [pygame.K_LEFT, pygame.K_DOWN]:
             if self.ball_adjustment_mode == BallAdjustmentMode.X_POSITION:
                 self.ball.x -= 10
                 self.calculate_trajectory_line_pos()
             else:
-                self.throw_angle -= 0.5
+                self.throw_angle -= 0.25
         elif event.key in [pygame.K_RIGHT, pygame.K_UP]:
             if self.ball_adjustment_mode == BallAdjustmentMode.X_POSITION:
                 self.ball.x += 10
                 self.calculate_trajectory_line_pos()
             else:
-                self.throw_angle += 0.5
+                self.throw_angle += 0.25
 
     def handle_end_of_throw(self) -> None:
         """Handles logic and pygame rendering when the current throw has just ended."""
         if self.score_keeper.add_throw(
             self.pin_set.pins_hit,
         ):  # If the frame has now finished after this throw
-            self.pin_set.remove_from_space()
+            self.pin_set.clean_up(end_of_frame=True)
             self.pin_set = PinSet(self.space)  # Reset pins
             print(self.score_keeper)
             self.frame_state = BowlingFrameState.ENDED
         else:
-            self.pin_set.clean_up()  # Remove knocked pins
+            self.pin_set.clean_up(end_of_frame=False)
         self.space.remove(self.ball.body, self.ball.shape)  # Remove ball from space
         self.ball = Ball(self.space)  # Reset ball
         self.throw_angle = 0
@@ -637,12 +639,12 @@ class BowlingGame:
         self.update_environment()
 
     def run(self) -> None:
-        """
-        Executes the main game loop.
-
-        Loops through listening for keystroke events, displaying elements on screen, and updating game state
-        accordingly while the game is running. Also limits the game to run at 60fps.
-        """
+        """Executes the main game loop."""
+        debug_draw_options = pymunk.pygame_util.DrawOptions(self.screen)
+        debug_draw_options.transform = pymunk.Transform(
+            tx=consts.SCREEN_WIDTH / 2,
+            ty=0,
+        )
         try:
             # self.score_keeper.test_setup()
             while self.running:
@@ -663,6 +665,7 @@ class BowlingGame:
                         self.ball.update()
                         self.draw_ball()
                         self.draw_pins()
+                        # self.space.debug_draw(debug_draw_options)
                         self.update_environment()
                 # If the current frame has ended
                 elif self.frame_state == BowlingFrameState.ENDED:
