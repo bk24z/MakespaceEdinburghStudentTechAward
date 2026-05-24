@@ -1,4 +1,5 @@
 import math
+import random
 from enum import Enum, auto
 
 import pymunk
@@ -29,8 +30,8 @@ class Ball:
     :ivar shape: The pymunk Shape of the pin.
     """
 
-    MASS = 10  # kg
-    DIAMETER = 8.5  # inches
+    MASS = 6.8  # kg
+    DIAMETER = 8.595  # inches
     RADIUS = DIAMETER / 2  # inches
     CIRCUMFERENCE = 2 * math.pi * RADIUS  # inches
 
@@ -42,11 +43,15 @@ class Ball:
         """
         self.state = BallState.STATIONARY
         self.body = pymunk.Body()
-        self.body.position = (0, 0)
+        self.body.position = (
+            random.uniform(
+                -0.5,
+                0.5,
+            ),  # Slightly random x-coord to avoid throwing directly straight every time
+            0,
+        )
         self.shape = pymunk.Circle(self.body, self.RADIUS)
-        self.shape.mass = (
-            self.MASS
-        )  # TODO: Change value / add ball choice functionality
+        self.shape.mass = self.MASS
         self.shape.elasticity = 0.9
         self.shape.friction = 0.4
         self.shape.collision_type = (
@@ -133,19 +138,10 @@ class Ball:
         has_entered_gutter = has_entered_left_gutter or has_entered_right_gutter
         is_finished = self.state == BallState.FINISHED
         in_gutter = self.state in (BallState.IN_LEFT_GUTTER, BallState.IN_RIGHT_GUTTER)
-        # print(self.state)
         if is_moving_in_lane:
-            print(
-                self.vx,
-                self.vy,
-                self.speed,
-                self.vy / (abs(self.vx) if self.vx != 0 else 1),
-            )
             # When the ball reaches the top of the lane, stop it
-            if self.y > consts.LANE_LENGTH:
+            if self.y > consts.LANE_LENGTH + 100:
                 self.state = BallState.FINISHED
-                # self.y = consts.LANE_LENGTH
-                # self.on_finish()
             # If the ball passes a lane boundary
             elif has_entered_gutter:
                 # If the ball goes directly out of bounds
@@ -162,7 +158,8 @@ class Ball:
                     if has_entered_right_gutter:
                         self.state = BallState.IN_RIGHT_GUTTER
         if (
-            in_gutter and self.y > consts.LANE_LENGTH
+            in_gutter
+            and self.y
+            > consts.LANE_LENGTH + 100  # 100 = buffer to allow for chain reactions
         ):  # When the ball reaches the top of the lane, stop it
             self.state = BallState.FINISHED
-            # self.y = consts.LANE_LENGTH
