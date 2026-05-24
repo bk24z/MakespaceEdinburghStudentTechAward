@@ -30,8 +30,8 @@ class Pin:
         self.body.position = (x, y)
         self.shape = pymunk.Circle(self.body, self.RADIUS)
         self.shape.mass = self.MASS
-        self.shape.friction = 1  # TODO: Tweak value
-        self.shape.elasticity = 1  # TODO: Tweak value
+        self.shape.friction = 0.4  # TODO: Tweak value
+        self.shape.elasticity = 0.5  # TODO: Tweak value
         self.shape.collision_type = collision_type
 
     @property
@@ -95,9 +95,9 @@ class PinSet:
         # Initialise space
         self.space = space
         # Reference constants
-        h = consts.HALF_PIN_SPACING_H
+        h = consts.PIN_SPACING_H
         v = consts.PIN_SPACING_V
-        base_y = consts.FOUL_LINE_TO_FRONT_PIN_DISTANCE
+        base_y = consts.FOUL_LINE_TO_FRONT_PIN_DISTANCE - 10
         # Intialise pins
         self.pins = [
             # First row
@@ -121,12 +121,12 @@ class PinSet:
             self.space.on_collision(  # When the ball hits a pin that has not been hit by the ball
                 collision_type_a=consts.BALL_ID,
                 collision_type_b=pin.shape.collision_type,
-                separate=pin.on_hit,
+                begin=pin.on_hit,
             )
             self.space.on_collision(  # When a pin that has been hit already hits another pin in a chain reaction
                 collision_type_a=consts.HIT_PIN_ID,
                 collision_type_b=pin.shape.collision_type,
-                separate=pin.on_hit,
+                begin=pin.on_hit,
             )
             # Add each pin's body and shape to the space
             self.space.add(pin.body, pin.shape)
@@ -140,8 +140,15 @@ class PinSet:
             if pin.shape.collision_type == consts.HIT_PIN_ID and not pin.removed
         )
 
-    def clean_up(self) -> None:
+    def clean_up(self, *, end_of_frame: bool = False) -> None:
         """Cleans up pins that have been hit by marking them as removed."""
         for pin in self.pins:
+            if (
+                (end_of_frame or pin.hit)
+                and pin.body.space is not None
+                and pin.shape.space is not None
+            ):
+                self.space.remove(pin.body, pin.shape)
             if pin.hit:
                 pin.removed = True
+                pin.body.velocity = (0, 0)
