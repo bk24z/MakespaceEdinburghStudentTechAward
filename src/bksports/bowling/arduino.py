@@ -77,7 +77,7 @@ class ArduinoController:
         line = self.ser.readline().decode("utf-8").rstrip()
         new_state_str, *str_data = line.split(",")
         self.state = get_state(int(new_state_str))
-        data = tuple(map(int, str_data))
+        data = tuple(map(float, str_data))
         # print(self.state.message, data)
         if self.state != ArduinoState.ERROR:
             self.state = ArduinoState.CONNECTED
