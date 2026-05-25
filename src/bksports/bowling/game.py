@@ -512,74 +512,69 @@ class BowlingGame:
         font: pygame.font.Font,
     ) -> None:
         """
-        Draws the scores onto the scoreboard, including throws and current score for each frame, on the screen.
+        Draws the scores onto the scoreboard, including frame and current score for each frame, on the screen.
 
         :param grid_height: The height of the scoreboard grid.
         :param cell_width: The width of each cell in the scoreboard grid.
         :param font: The font used to render score text on the scoreboard.
         """
-        c_score = 0
-        for i, frame in enumerate(self.score_keeper.frame_score_data):
-            if None not in frame:
-                c_score += sum([score for score in frame if score is not None])
-                throws = self.score_keeper.frame_throws[i]
-                try:
-                    if throws[0] == 10:
-                        throw_1_text = "X" if len(throws) == 3 else ""
-                        throw_2_text = (
-                            "X" if (len(throws) != 3 or throws[1] == 10) else ""
-                        )
-                    else:
-                        throw_1_text = str(throws[0])
-                        throw_2_text = str(throws[1]) if sum(throws[:2]) < 10 else "/"
-                except IndexError:
-                    throw_2_text = ""
-                try:
-                    if throws[2] == 10:
-                        throw_3_text = "X"
-                    else:
-                        throw_3_text = str(
-                            throws[2]
-                            if (sum(throws[1:3]) < 10 or throws[1] == 10)
-                            else "/",
-                        )
-                except IndexError:
-                    throw_3_text = ""
+        for i, frame in enumerate(self.score_keeper.frames):
+            frame_score = self.score_keeper.get_score(i)
+            try:
+                if frame[0] == 10:
+                    throw_1_text = "X" if len(frame) == 3 else ""
+                    throw_2_text = "X" if (len(frame) != 3 or frame[1] == 10) else ""
+                else:
+                    throw_1_text = str(frame[0])
+                    throw_2_text = str(frame[1]) if sum(frame[:2]) < 10 else "/"
+            except IndexError:
+                throw_2_text = ""
+            try:
+                if frame[2] == 10:
+                    throw_3_text = "X"
+                else:
+                    throw_3_text = str(
+                        frame[2] if (sum(frame[1:3]) < 10 or frame[1] == 10) else "/",
+                    )
+            except IndexError:
+                throw_3_text = ""
 
-                # First throw
-                self.screen.blit(
-                    font.render(throw_1_text, True, (0, 0, 0)),
-                    (
-                        (i + (0.25 if throw_3_text == "" else 1 / 6)) * cell_width
-                        - (font.size(throw_1_text)[0] / 2),
-                        (consts.SCREEN_HEIGHT / 2) - grid_height * (1 / 6),
-                    ),
-                )
-                # Second throw
-                self.screen.blit(
-                    font.render(throw_2_text, True, (0, 0, 0)),
-                    (
-                        (i + (0.75 if throw_3_text == "" else 0.5)) * cell_width
-                        - (font.size(throw_2_text)[0] / 2),
-                        (consts.SCREEN_HEIGHT / 2) - grid_height * (1 / 6),
-                    ),
-                )
-                # Third throw
-                self.screen.blit(
-                    font.render(throw_3_text, True, (0, 0, 0)),
-                    (
-                        (i + 5 / 6) * cell_width - (font.size(throw_3_text)[0] / 2),
-                        (consts.SCREEN_HEIGHT / 2) - grid_height * (1 / 6),
-                    ),
-                )
-                # Current score after this frame
-                self.screen.blit(
-                    font.render(str(c_score), True, (0, 0, 0)),
-                    (
-                        (i + 0.5) * cell_width - (font.size(str(c_score))[0] / 2),
-                        (consts.SCREEN_HEIGHT / 2) + grid_height * (1 / 2),
-                    ),
-                )
+            # First throw
+            self.screen.blit(
+                font.render(throw_1_text, True, (0, 0, 0)),
+                (
+                    (i + (0.25 if throw_3_text == "" else 1 / 6)) * cell_width
+                    - (font.size(throw_1_text)[0] / 2),
+                    (consts.SCREEN_HEIGHT / 2) - grid_height * (1 / 6),
+                ),
+            )
+            # Second throw
+            self.screen.blit(
+                font.render(throw_2_text, True, (0, 0, 0)),
+                (
+                    (i + (0.75 if throw_3_text == "" else 0.5)) * cell_width
+                    - (font.size(throw_2_text)[0] / 2),
+                    (consts.SCREEN_HEIGHT / 2) - grid_height * (1 / 6),
+                ),
+            )
+            # Third throw
+            self.screen.blit(
+                font.render(throw_3_text, True, (0, 0, 0)),
+                (
+                    (i + 5 / 6) * cell_width - (font.size(throw_3_text)[0] / 2),
+                    (consts.SCREEN_HEIGHT / 2) - grid_height * (1 / 6),
+                ),
+            )
+            # Current score after this frame
+            self.screen.blit(
+                font.render(
+                    str(frame_score) if frame_score != -1 else "", True, (0, 0, 0)
+                ),
+                (
+                    (i + 0.5) * cell_width - (font.size(str(frame_score))[0] / 2),
+                    (consts.SCREEN_HEIGHT / 2) + grid_height * (1 / 2),
+                ),
+            )
 
     def draw_scoreboard(self) -> None:
         """
@@ -640,17 +635,21 @@ class BowlingGame:
 
     def run(self) -> None:
         """Executes the main game loop."""
-        debug_draw_options = pymunk.pygame_util.DrawOptions(self.screen)
-        debug_draw_options.transform = pymunk.Transform(
-            tx=consts.SCREEN_WIDTH / 2,
-            ty=0,
-        )
+        # Debug
+        # debug_draw_options = pymunk.pygame_util.DrawOptions(self.screen)
+        # debug_draw_options.transform = pymunk.Transform(
+        #     tx=consts.SCREEN_WIDTH / 2,
+        #     ty=0,
+        # )
+        # self.score_keeper.test_setup()
+        # while self.running:
+        #     self.handle_end_of_frame()
+
+        # Main loop
         try:
-            # self.score_keeper.test_setup()
             while self.running:
-                # self.handle_end_of_frame()
                 # If the game is finished
-                if self.score_keeper.finished:
+                if self.score_keeper.game_finished:
                     self.handle_finished_game()
                 # If the game is waiting for the player to throw the ball
                 elif self.frame_state == BowlingFrameState.IN_PROGRESS:
