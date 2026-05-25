@@ -1,4 +1,5 @@
 import math
+import time
 from enum import Enum, auto
 from pathlib import Path
 
@@ -50,7 +51,7 @@ def calculate_ball_speed_from_throw(
     :param max_gyroscope_y: The maximum measured y-axis gyroscope value in degrees per second.
     :return: The calculated ball speed.
     """
-    return math.sqrt(max_gyroscope_x**2 + max_gyroscope_y**2) * 10
+    return min(math.sqrt(max_gyroscope_x**2 + max_gyroscope_y**2), 500)
 
 
 class BowlingGame:
@@ -106,6 +107,7 @@ class BowlingGame:
             self.control_mode = GameControlMode.KEYBOARD
         self.max_gyroscope_x = 0
         self.max_gyroscope_y = 0
+        self.throw_timer_end = 0
         # Intialise other game variables
         self._throw_angle = 0.0
         self.tl_start_pos = None
@@ -185,49 +187,32 @@ class BowlingGame:
         font = pygame.font.Font(None, 56)
         assets_dir = Path(__file__).parent.parent / "assets"
         # Rotate/move key (S)
-        s_key_img = pygame.transform.rotate(
-            pygame.image.load(assets_dir / "icons8-s-key-100.png"),
-            90,
+        s_key_img = pygame.image.load(assets_dir / "icons8-s-key-100.png")
+        self.screen.blit(s_key_img, (10, 10))
+        rotate_move_text = font.render(
+            "Rotate"
+            if self.ball_adjustment_mode != BallAdjustmentMode.ROTATION
+            else "Move",
+            True,
+            (0, 0, 0),
         )
-        self.screen.blit(s_key_img, (10, consts.SCREEN_HEIGHT - 105))
-        rotate_move_text = pygame.transform.rotate(
-            font.render(
-                "Rotate"
-                if self.ball_adjustment_mode != BallAdjustmentMode.ROTATION
-                else "Move",
-                True,
-                (0, 0, 0),
-            ),
-            90,
-        )
-        self.screen.blit(rotate_move_text, (40, consts.SCREEN_HEIGHT - 227.5))
+        self.screen.blit(rotate_move_text, (120, 45))
         # Throw key (Space)
-        space_key_img = pygame.transform.rotate(
-            pygame.image.load(assets_dir / "icons8-space-key-100.png"),
-            90,
-        )
-        self.screen.blit(space_key_img, (95, consts.SCREEN_HEIGHT - 115))
-        throw_text = pygame.transform.rotate(
-            font.render("Throw", True, (0, 0, 0)),
-            90,
-        )
-        self.screen.blit(throw_text, (130, consts.SCREEN_HEIGHT - 245))
+        space_key_img = pygame.image.load(assets_dir / "icons8-space-key-100.png")
+        self.screen.blit(space_key_img, (300, 10))
+        throw_text = font.render("Throw", True, (0, 0, 0))
+        self.screen.blit(throw_text, (420, 45))
         # Arduino connect key (C)
-        c_key_img = pygame.transform.rotate(
-            pygame.image.load(assets_dir / "icons8-c-key-100.png"),
-            90,
+        c_key_img = pygame.image.load(assets_dir / "icons8-c-key-100.png")
+        self.screen.blit(c_key_img, (590, 10))
+        connect_to_text = font.render(
+            "Connect to Arduino"
+            if self.arduino_controller.state != ArduinoState.CONNECTED
+            else "Reconnect to Arduino",
+            True,
+            (0, 0, 0),
         )
-        self.screen.blit(c_key_img, (180, consts.SCREEN_HEIGHT - 105))
-        connect_to_text = pygame.transform.rotate(
-            font.render("Connect to", True, (0, 0, 0)),
-            90,
-        )
-        self.screen.blit(connect_to_text, (195, consts.SCREEN_HEIGHT - 305))
-        arduino_text = pygame.transform.rotate(
-            font.render("Arduino", True, (0, 0, 0)),
-            90,
-        )
-        self.screen.blit(arduino_text, (230, consts.SCREEN_HEIGHT - 255))
+        self.screen.blit(connect_to_text, (700, 45))
 
     def draw_ball(self) -> None:
         """Draws the ball on the screen, at a position relative to its coordinates in the game space."""
@@ -277,16 +262,17 @@ class BowlingGame:
     def check_for_throw(self) -> None:
         """Handles checking for throw measurements, and throwing the ball in-game accordingly."""
         if (
-            pygame.key.get_pressed()[pygame.K_SPACE]
-            and self.arduino_controller.state == ArduinoState.CONNECTED
+            self.arduino_controller.state == ArduinoState.CONNECTED
+            and time.time() < self.throw_timer_end
         ):
             current_gyroscope_x, current_gyroscope_y = (
                 self.arduino_controller.readline()
             )
             self.max_gyroscope_x = max(self.max_gyroscope_x, current_gyroscope_x)
             self.max_gyroscope_y = max(self.max_gyroscope_y, current_gyroscope_y)
+            print(self.max_gyroscope_x, self.max_gyroscope_y)
         if (
-            not pygame.key.get_pressed()[pygame.K_SPACE]
+            time.time() > self.throw_timer_end
             and (self.max_gyroscope_x != 0 or self.max_gyroscope_y != 0)
             and self.ball.state == BallState.STATIONARY
         ):
@@ -297,19 +283,21 @@ class BowlingGame:
                     self.max_gyroscope_y,
                 ),
             )
-        # print(self.max_gyroscope_x, self.max_gyroscope_y)
+            self.max_gyroscope_x = 0
+            self.max_gyroscope_y = 0
+            self.throw_timer_end = 0
 
     def handle_waiting_for_throw_state(self) -> None:
         """Handles logic and pygame rendering when the game is waiting for the user to make a throw."""
-        if self.control_mode == GameControlMode.MOTION:
+        if (
+            self.control_mode == GameControlMode.MOTION
+            and self.ball.state == BallState.STATIONARY
+        ):
             self.check_for_throw()
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
-            elif (
-                event.type == pygame.KEYDOWN
-                # and not pygame.key.get_pressed()[pygame.K_SPACE]
-            ):
+            elif event.type == pygame.KEYDOWN:
                 self.handle_keydown_before_throw(event)
 
     def handle_keydown_before_throw(self, event: pygame.event.Event) -> None:
@@ -320,13 +308,12 @@ class BowlingGame:
         """
         if event.key == pygame.K_ESCAPE:
             self.running = False
-        elif (
-            event.key == pygame.K_SPACE
-            and self.control_mode == GameControlMode.KEYBOARD
-            and self.ball.state == BallState.STATIONARY
-        ):
-            # self.ball.throw(self.throw_angle, 400)
-            self.ball.throw(self.throw_angle, 317.0)
+        elif event.key == pygame.K_SPACE and self.ball.state == BallState.STATIONARY:
+            if self.control_mode == GameControlMode.KEYBOARD:
+                # self.ball.throw(self.throw_angle, 400)
+                self.ball.throw(self.throw_angle, 317.0)
+            if self.control_mode == GameControlMode.MOTION:
+                self.throw_timer_end = time.time() + 0.75
         elif event.key == pygame.K_s:
             self.ball_adjustment_mode = (
                 BallAdjustmentMode.ROTATION
@@ -597,13 +584,13 @@ class BowlingGame:
         assets_dir = Path(__file__).parent.parent / "assets"
         # Scoreboard
         self.draw_scoreboard()
-        # Continue (Space) key prompt
-        space_key_img = pygame.image.load(assets_dir / "icons8-space-key-100.png")
+        # Continue (Enter) key prompt
+        enter_key_img = pygame.image.load(assets_dir / "icons8-enter-key-100.png")
         self.screen.blit(
-            space_key_img,
+            enter_key_img,
             (
                 (consts.SCREEN_WIDTH - font.size("Continue")[0]) / 2 - 60,
-                consts.SCREEN_HEIGHT - 280,
+                consts.SCREEN_HEIGHT - 285,
             ),
         )
         continue_text = font.render("Continue", True, (0, 0, 0))
@@ -618,7 +605,7 @@ class BowlingGame:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
-            elif event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+            elif event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
                 self.frame_state = BowlingFrameState.IN_PROGRESS
         # Updating environment
         self.update_environment()
