@@ -16,7 +16,6 @@ void setup() {
     ak09918.switchMode(AK09918_CONTINUOUS_100HZ);
     Serial.begin(9600);
 
-    Serial.println("0"); // Waiting for connection to sensor
     err = ak09918.isDataReady();
     while (err != AK09918_ERR_OK) {
         delay(100);
@@ -26,9 +25,11 @@ void setup() {
 }
 
 void loop() {
-    Serial.print("2,"); // Measuring
-    Serial.print(icm20600.getGyroscopeX());
-    Serial.print(",");
-    Serial.println(icm20600.getGyroscopeY());
+    float x = icm20600.getAccelerationX();
+    float y = icm20600.getAccelerationY();
+    float z = icm20600.getAccelerationZ();
+    float force = sqrt(x*x + y*y + z*z) - 1000.0;
+    Serial.print("2,");
+    Serial.println(force);
     delay(50);
 }
