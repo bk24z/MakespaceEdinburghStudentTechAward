@@ -1,5 +1,4 @@
 import time
-from collections.abc import Callable
 from enum import Enum
 
 import serial
@@ -84,40 +83,10 @@ class ArduinoController:
             self.state = ArduinoState.CONNECTED
         return data
 
-    def read(self, condition: Callable[[], bool]) -> tuple[list[int], list[int]]:
-        """
-        Reads serial data while a specific condition is met and returns the data measured in this period.
-
-        :param condition: A boolean-returning function, indicating whether the read operation should continue.
-        :return: A tuple containing the lists of data. (gyroscope_x_data, gyroscope_y_data)
-        """
-        if not self.ser.is_open:
-            print("Reopening serial port...")
-            self.ser.open()
-            time.sleep(2)
-        self.state = ArduinoState.MEASURING
-        gyroscope_x_data = []
-        gyroscope_y_data = []
-        data_lists = (gyroscope_x_data, gyroscope_y_data)
-        try:
-            while condition() and self.ser.in_waiting > 0:
-                line = self.ser.readline().decode("utf-8").rstrip()
-                new_state_str, *str_data = line.split(",")
-                self.state = get_state(int(new_state_str))
-                data = list(map(int, str_data))
-                print(self.state.message, data)
-                for i, p in enumerate(data):
-                    data_lists[i].append(p)
-        except KeyboardInterrupt:
-            print("\nProgram stopped by user.")
-        finally:
-            self.close()
-        return data_lists
-
 
 if __name__ == "__main__":
     ac = ArduinoController()
     input("Press Enter to read")
     end_time = time.time() + 10
-    g_x_data, g_y_data = ac.read(lambda: time.time() < end_time)
-    print(max(g_x_data), max(g_y_data))
+    while time.time() < end_time:
+        print(ac.readline())
