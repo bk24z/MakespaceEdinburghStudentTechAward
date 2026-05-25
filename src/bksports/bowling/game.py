@@ -40,18 +40,15 @@ class GameControlMode(Enum):
     KEYBOARD = auto()
 
 
-def calculate_ball_speed_from_throw(
-    max_gyroscope_x: float,
-    max_gyroscope_y: float,
-) -> float:
+def calculate_ball_speed_from_throw_force(force: float) -> float:
     """
-    Calculates the speed of a ball based on gyroscopic measurements from the Arduino.
+    Calculates the speed of a ball based on acceleration measurements from the Arduino.
 
     :param max_gyroscope_x: The maximum measured x-axis gyroscope value in degrees per second.
     :param max_gyroscope_y: The maximum measured y-axis gyroscope value in degrees per second.
     :return: The calculated ball speed.
     """
-    return min(math.sqrt(max_gyroscope_x**2 + max_gyroscope_y**2), 500)
+    return max((abs(force) / 3000) * 400, 400)
 
 
 class BowlingGame:
@@ -72,8 +69,8 @@ class BowlingGame:
     :ivar pin_set: Contains and manages the set of pins in the game.
     :ivar score_keeper: Keeps track of the game score and manages throws.
     :ivar arduino_controller: Handles connecting to the Arduino for throw velocity measurements.
-    :ivar max_gyroscope_x: The maximum measured x-axis gyroscope value in degrees per second.
-    :ivar max_gyroscope_y: The maximum measured y-axis gyroscope value in degrees per second.
+    :ivar max_throw_force: The maximum measured throwing force in mg.
+    :ivar throw_timer_end: The set end time for the throw timer (gives a short time-window for the player to throw).
     :ivar _throw_angle: The angle at which the ball should be thrown at, and that the trajectory line should be at.
     :ivar tl_start_pos: The start position of the trajectory line.
     :ivar tl_end_pos: The start position of the trajectory line.
@@ -105,8 +102,7 @@ class BowlingGame:
         self.arduino_controller = ArduinoController()
         if self.arduino_controller.state == ArduinoState.ERROR:
             self.control_mode = GameControlMode.KEYBOARD
-        self.max_gyroscope_x = 0
-        self.max_gyroscope_y = 0
+        self.max_throw_force = 0
         self.throw_timer_end = 0
         # Intialise other game variables
         self._throw_angle = 0.0
@@ -265,26 +261,19 @@ class BowlingGame:
             self.arduino_controller.state == ArduinoState.CONNECTED
             and time.time() < self.throw_timer_end
         ):
-            current_gyroscope_x, current_gyroscope_y = (
-                self.arduino_controller.readline()
-            )
-            self.max_gyroscope_x = max(self.max_gyroscope_x, current_gyroscope_x)
-            self.max_gyroscope_y = max(self.max_gyroscope_y, current_gyroscope_y)
-            print(self.max_gyroscope_x, self.max_gyroscope_y)
+            current_throw_force = self.arduino_controller.readline()[0]
+            self.max_throw_force = max(self.max_throw_force, current_throw_force)
+            print(self.max_throw_force)
         if (
             time.time() > self.throw_timer_end
-            and (self.max_gyroscope_x != 0 or self.max_gyroscope_y != 0)
+            and self.max_throw_force != 0
             and self.ball.state == BallState.STATIONARY
         ):
             self.ball.throw(
                 self.throw_angle,
-                calculate_ball_speed_from_throw(
-                    self.max_gyroscope_x,
-                    self.max_gyroscope_y,
-                ),
+                calculate_ball_speed_from_throw_force(self.max_throw_force),
             )
-            self.max_gyroscope_x = 0
-            self.max_gyroscope_y = 0
+            self.max_throw_force = 0
             self.throw_timer_end = 0
 
     def handle_waiting_for_throw_state(self) -> None:
@@ -313,7 +302,7 @@ class BowlingGame:
                 # self.ball.throw(self.throw_angle, 400)
                 self.ball.throw(self.throw_angle, 317.0)
             if self.control_mode == GameControlMode.MOTION:
-                self.throw_timer_end = time.time() + 0.75
+                self.throw_timer_end = time.time() + 1
         elif event.key == pygame.K_s:
             self.ball_adjustment_mode = (
                 BallAdjustmentMode.ROTATION
