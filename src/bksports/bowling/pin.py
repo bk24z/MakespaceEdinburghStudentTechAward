@@ -30,8 +30,8 @@ class Pin:
         self.body.position = (x, y)
         self.shape = pymunk.Circle(self.body, self.RADIUS)
         self.shape.mass = self.MASS
-        self.shape.friction = 0.4  # TODO: Tweak value
-        self.shape.elasticity = 0.5  # TODO: Tweak value
+        self.shape.friction = 0.4
+        self.shape.elasticity = 0.8
         self.shape.collision_type = collision_type
 
     @property
