@@ -42,13 +42,14 @@ class GameControlMode(Enum):
 
 def calculate_ball_speed_from_throw_force(force: float) -> float:
     """
-    Calculates the speed of a ball based on acceleration measurements from the Arduino.
+    Calculates the speed of the ball based on acceleration measurements from the Arduino/IMU.
 
-    :param max_gyroscope_x: The maximum measured x-axis gyroscope value in degrees per second.
-    :param max_gyroscope_y: The maximum measured y-axis gyroscope value in degrees per second.
-    :return: The calculated ball speed.
+    :param force: The maximum measured throwing force in mg.
+    :return: The calculated ball speed in inches per second, capped at 500.
     """
-    return max((abs(force) / 3000) * 400, 400)
+    max_speed = 500
+    max_force = 2000
+    return min((abs(force) / max_force) * max_speed, max_speed)
 
 
 class BowlingGame:
@@ -209,6 +210,27 @@ class BowlingGame:
             (0, 0, 0),
         )
         self.screen.blit(connect_to_text, (700, 45))
+        # "Swing now to throw!" text
+        if self.throw_timer_end != 0 and self.ball.state == BallState.STATIONARY:
+            swing_message = (
+                "Swing now to throw!"
+                if time.time() < self.throw_timer_end
+                else "Oops! Try again."
+            )
+        else:
+            swing_message = ""
+        swing_text = font.render(swing_message, True, (0, 0, 0))
+        self.screen.blit(swing_text, (10, consts.SCREEN_HEIGHT - 50))
+        # Control mode text
+        control_mode_message = f"Control Mode: {self.control_mode.name.title()}"
+        control_mode_text = font.render(control_mode_message, True, (0, 0, 0))
+        self.screen.blit(
+            control_mode_text,
+            (
+                consts.SCREEN_WIDTH - font.size(control_mode_message)[0] - 10,
+                consts.SCREEN_HEIGHT - 50,
+            ),
+        )
 
     def draw_ball(self) -> None:
         """Draws the ball on the screen, at a position relative to its coordinates in the game space."""
@@ -242,8 +264,6 @@ class BowlingGame:
         end_x = self.ball.x + length * math.sin(math.radians(self.throw_angle))
         end_y = self.ball.y + length * math.cos(math.radians(self.throw_angle))
         self.tl_end_pos = convert_game_to_screen_pos(end_x, end_y)
-        # print(f"Angle: {self.__angle}, end_y (game): {end_y}, end_pos (screen): {self.end_pos}")
-        # return start_pos, end_pos
 
     def draw_trajectory_line(self) -> None:
         """Draws the trajectory line on the screen, at its calcuated start and end positions."""
@@ -254,106 +274,6 @@ class BowlingGame:
             self.tl_end_pos,
             5,
         )
-
-    def check_for_throw(self) -> None:
-        """Handles checking for throw measurements, and throwing the ball in-game accordingly."""
-        if (
-            self.arduino_controller.state == ArduinoState.CONNECTED
-            and time.time() < self.throw_timer_end
-        ):
-            current_throw_force = self.arduino_controller.readline()[0]
-            self.max_throw_force = max(self.max_throw_force, current_throw_force)
-            print(self.max_throw_force)
-        if (
-            time.time() > self.throw_timer_end
-            and self.max_throw_force != 0
-            and self.ball.state == BallState.STATIONARY
-        ):
-            self.ball.throw(
-                self.throw_angle,
-                calculate_ball_speed_from_throw_force(self.max_throw_force),
-            )
-            self.max_throw_force = 0
-            self.throw_timer_end = 0
-
-    def handle_waiting_for_throw_state(self) -> None:
-        """Handles logic and pygame rendering when the game is waiting for the user to make a throw."""
-        if (
-            self.control_mode == GameControlMode.MOTION
-            and self.ball.state == BallState.STATIONARY
-        ):
-            self.check_for_throw()
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                self.running = False
-            elif event.type == pygame.KEYDOWN:
-                self.handle_keydown_before_throw(event)
-
-    def handle_keydown_before_throw(self, event: pygame.event.Event) -> None:
-        """
-        Handles keypress logic when the game is waiting for the user to make a throw.
-
-        :param event: The pygame Event being handled.
-        """
-        if event.key == pygame.K_ESCAPE:
-            self.running = False
-        elif event.key == pygame.K_SPACE and self.ball.state == BallState.STATIONARY:
-            if self.control_mode == GameControlMode.KEYBOARD:
-                # self.ball.throw(self.throw_angle, 400)
-                self.ball.throw(self.throw_angle, 317.0)
-            if self.control_mode == GameControlMode.MOTION:
-                self.throw_timer_end = time.time() + 1
-        elif event.key == pygame.K_s:
-            self.ball_adjustment_mode = (
-                BallAdjustmentMode.ROTATION
-                if self.ball_adjustment_mode != BallAdjustmentMode.ROTATION
-                else BallAdjustmentMode.X_POSITION
-            )
-        elif event.key == pygame.K_c and self.control_mode != GameControlMode.MOTION:
-            self.arduino_controller = (
-                ArduinoController()
-            )  # Reinitialise connection to Arduino
-            if self.arduino_controller.state == ArduinoState.CONNECTED:
-                self.control_mode = GameControlMode.MOTION
-        elif event.key in [pygame.K_LEFT, pygame.K_DOWN]:
-            if self.ball_adjustment_mode == BallAdjustmentMode.X_POSITION:
-                self.ball.x -= 10
-                self.calculate_trajectory_line_pos()
-            else:
-                self.throw_angle -= 0.25
-        elif event.key in [pygame.K_RIGHT, pygame.K_UP]:
-            if self.ball_adjustment_mode == BallAdjustmentMode.X_POSITION:
-                self.ball.x += 10
-                self.calculate_trajectory_line_pos()
-            else:
-                self.throw_angle += 0.25
-
-    def handle_end_of_throw(self) -> None:
-        """Handles logic and pygame rendering when the current throw has just ended."""
-        if self.score_keeper.add_throw(
-            self.pin_set.pins_hit,
-        ):  # If the frame has now finished after this throw
-            self.pin_set.clean_up(end_of_frame=True)
-            self.pin_set = PinSet(self.space)  # Reset pins
-            print(self.score_keeper)
-            self.frame_state = BowlingFrameState.ENDED
-        else:
-            self.pin_set.clean_up(end_of_frame=False)
-        self.space.remove(self.ball.body, self.ball.shape)  # Remove ball from space
-        self.ball = Ball(self.space)  # Reset ball
-        self.throw_angle = 0
-        self.max_gyroscope_x = self.max_gyroscope_y = 0  # Reset gyroscope measurements
-        pygame.event.clear()
-
-    def update_environment(self) -> None:
-        """
-        Updates the environment.
-
-        Refreshes the display, limits the frame rate to 60fps, and updates the simulation space.
-        """
-        pygame.display.update()
-        self.clock.tick(consts.FRAMES_PER_SECOND)
-        self.space.step(1 / consts.FRAMES_PER_SECOND)
 
     def draw_scoreboard_grid(
         self,
@@ -566,6 +486,98 @@ class BowlingGame:
         self.draw_scoreboard_grid(grid_height, cell_width, font)
         self.draw_scoreboard_scores(grid_height, cell_width, font)
 
+    def check_for_throw(self) -> None:
+        """Handles checking for throw measurements, and throwing the ball in-game accordingly."""
+        try:
+            if (
+                self.arduino_controller.state == ArduinoState.CONNECTED
+                and time.time() < self.throw_timer_end
+            ):
+                current_throw_force = 0
+                while self.arduino_controller.ser.in_waiting > 0:
+                    current_throw_force = self.arduino_controller.readline()[0]
+                self.max_throw_force = max(self.max_throw_force, current_throw_force)
+                print(self.max_throw_force)
+            if (
+                time.time() > self.throw_timer_end
+                and self.max_throw_force != 0
+                and self.ball.state == BallState.STATIONARY
+            ):
+                speed = calculate_ball_speed_from_throw_force(self.max_throw_force)
+                min_speed = 10
+                if speed > min_speed:
+                    self.ball.throw(self.throw_angle, speed)
+                    self.max_throw_force = 0
+                    self.throw_timer_end = 0
+        except OSError:
+            self.arduino_controller.state = ArduinoState.ERROR
+            self.control_mode = GameControlMode.KEYBOARD
+            print(
+                "An error has occured, so Arduino has disconnected. Connect Arduino and press C in the game window to retry connecting.",
+            )
+
+    def handle_waiting_for_throw_state(self) -> None:
+        """Handles logic and pygame rendering when the game is waiting for the user to make a throw."""
+        if (
+            self.control_mode == GameControlMode.MOTION
+            and self.ball.state == BallState.STATIONARY
+        ):
+            self.check_for_throw()
+
+    def handle_keydown_before_throw(self, event: pygame.event.Event) -> None:
+        """
+        Handles keypress logic when the game is waiting for the user to make a throw.
+
+        :param event: The pygame Event being handled.
+        """
+        if event.key == pygame.K_SPACE and self.ball.state == BallState.STATIONARY:
+            if self.control_mode == GameControlMode.KEYBOARD:
+                # self.ball.throw(self.throw_angle, 400)
+                self.ball.throw(self.throw_angle, 317.0)
+            if self.control_mode == GameControlMode.MOTION:
+                self.throw_timer_end = time.time() + 1.25
+        elif event.key == pygame.K_s:
+            self.ball_adjustment_mode = (
+                BallAdjustmentMode.ROTATION
+                if self.ball_adjustment_mode != BallAdjustmentMode.ROTATION
+                else BallAdjustmentMode.X_POSITION
+            )
+        elif event.key == pygame.K_c and self.control_mode != GameControlMode.MOTION:
+            self.arduino_controller = (
+                ArduinoController()
+            )  # Reinitialise connection to Arduino
+            if self.arduino_controller.state == ArduinoState.CONNECTED:
+                self.control_mode = GameControlMode.MOTION
+        elif event.key in [pygame.K_LEFT, pygame.K_DOWN]:
+            if self.ball_adjustment_mode == BallAdjustmentMode.X_POSITION:
+                self.ball.x -= 10
+                self.calculate_trajectory_line_pos()
+            else:
+                self.throw_angle -= 0.25
+        elif event.key in [pygame.K_RIGHT, pygame.K_UP]:
+            if self.ball_adjustment_mode == BallAdjustmentMode.X_POSITION:
+                self.ball.x += 10
+                self.calculate_trajectory_line_pos()
+            else:
+                self.throw_angle += 0.25
+
+    def handle_end_of_throw(self) -> None:
+        """Handles logic and pygame rendering when the current throw has just ended."""
+        if self.score_keeper.add_throw(
+            self.pin_set.pins_hit,
+        ):  # If the frame has now finished after this throw
+            self.pin_set.clean_up(end_of_frame=True)
+            self.pin_set = PinSet(self.space)  # Reset pins
+            print(self.score_keeper)
+            self.frame_state = BowlingFrameState.ENDED
+        else:
+            self.pin_set.clean_up(end_of_frame=False)
+        self.space.remove(self.ball.body, self.ball.shape)  # Remove ball from space
+        self.ball = Ball(self.space)  # Reset ball
+        self.throw_angle = 0
+        self.max_gyroscope_x = self.max_gyroscope_y = 0  # Reset gyroscope measurements
+        pygame.event.clear()
+
     def handle_end_of_frame(self) -> None:
         """Handles logic and pygame rendering when the current frame has ended."""
         # Constants
@@ -590,24 +602,38 @@ class BowlingGame:
                 consts.SCREEN_HEIGHT - 250,
             ),
         )
-        # Event handling
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                self.running = False
-            elif event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
-                self.frame_state = BowlingFrameState.IN_PROGRESS
         # Updating environment
         self.update_environment()
 
     def handle_finished_game(self) -> None:
         """Handles logic and pygame rendering when the bowling game has finished."""
         self.draw_scoreboard()
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT or (
-                event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE
-            ):
-                self.running = False
         self.update_environment()
+
+    def handle_event(self, event: pygame.event.Event) -> None:
+        """Handles a single pygame event based on the current game state."""
+        if event.type == pygame.QUIT or (
+            event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE
+        ):
+            self.running = False
+        elif event.type == pygame.KEYDOWN:
+            if self.ball.state == BallState.STATIONARY:
+                self.handle_keydown_before_throw(event)
+            if (
+                self.frame_state == BowlingFrameState.ENDED
+                and event.key == pygame.K_RETURN
+            ):
+                self.frame_state = BowlingFrameState.IN_PROGRESS
+
+    def update_environment(self) -> None:
+        """
+        Updates the environment.
+
+        Refreshes the display, limits the frame rate to 60fps, and updates the simulation space.
+        """
+        pygame.display.update()
+        self.clock.tick(consts.FRAMES_PER_SECOND)
+        self.space.step(1 / consts.FRAMES_PER_SECOND)
 
     def run(self) -> None:
         """Executes the main game loop."""
@@ -624,6 +650,16 @@ class BowlingGame:
         # Main loop
         try:
             while self.running:
+                # Confirm connection to Arduino
+                if (
+                    not self.arduino_controller.is_connected()
+                    and self.control_mode == GameControlMode.MOTION
+                ):
+                    self.arduino_controller.state = ArduinoState.ERROR
+                    self.control_mode = GameControlMode.KEYBOARD
+                # Handle all events
+                for event in pygame.event.get():
+                    self.handle_event(event)
                 # If the game is finished
                 if self.score_keeper.game_finished:
                     self.handle_finished_game()
