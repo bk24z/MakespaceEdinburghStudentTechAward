@@ -47,6 +47,21 @@ class ArduinoController:
         self.state = ArduinoState.WAITING
         print("Serial port closed.")
 
+    def is_connected(self) -> bool:
+        """
+        Determines if the serial connection is currently active (connecting raises no errors).
+
+        :return: True if the serial connection is active, otherwise False.
+        """
+        if not hasattr(self, "ser"):
+            return False
+        try:
+            _ = self.ser.in_waiting
+        except serial.SerialException:
+            return False
+        else:
+            return True
+
     def connect_to_serial(self) -> None:
         """
         Establishes connection to Arduino and prepares the program to read its serial port.
@@ -86,7 +101,11 @@ class ArduinoController:
 
 if __name__ == "__main__":
     ac = ArduinoController()
-    input("Press Enter to read")
-    end_time = time.time() + 10
-    while time.time() < end_time:
-        print(ac.readline())
+    is_connected = ac.is_connected()
+    print(is_connected)
+    if is_connected:
+        input("Press Enter to read")
+        end_time = time.time() + 10
+        while time.time() < end_time:
+            print(ac.readline())
+            ac.ser.reset_input_buffer()
